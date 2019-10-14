@@ -3,6 +3,14 @@ uuid = "8c7cac60-37ca-418c-be28-fd9d1bae9cd2"
 authors = ["Paul Schrimpf <paul.schrimpf@gmail.com>"]
 version = "0.1.0"
 
+[deps]
+CUDAnative = "be33ccc6-a3ff-5ff2-a52e-74243cff1e17"
+CuArrays = "3a865a2d-5b23-5a0f-bc46-62713ec82fae"
+Future = "9fa8497b-333b-5362-9e8d-4d0656e87820"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [compat]
 julia = "1"
 
