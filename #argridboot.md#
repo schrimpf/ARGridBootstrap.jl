@@ -1,0 +1,1236 @@
+---
+title       : "Coding for Performance"
+subtitle    : 
+author      : Paul Schrimpf
+date        : 2019-10-13
+bibliography: /home/paul/.julia/dev/ARGridBootstrap/docs/perf.bib
+---
+
+<a rel="license"
+href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative
+Commons License" style="border-width:0"
+src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png"
+/></a><br />This work is licensed under a <a rel="license"
+href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+Commons Attribution-ShareAlike 4.0 International License</a>.
+
+### About this document {-}
+
+This document was created using Weave.jl. The code is available in
+[on github](FIXME). The same
+document generates both static webpages and associated jupyter
+notebooks. 
+
+# Introudction
+
+Today we will look into some methods to improve the speed of our
+code. Although speed is sometimes important, never forget that speed
+should be low on your list of priorities when writing code. You should
+prioritize correctness and maintainability ahead of
+performance. Nonetheless, performance does matter for some problems. 
+
+# Grid bootstrap
+
+As a motivating example we will look at the gridded bootstrap of
+@hansen99. FIXME: DESCRIPTION. Gauss, Matlab, and R code implementing
+Hansen's method is available on [his website](https://www.ssc.wisc.edu/~bhansen/progs/restat_99.html). The Julia
+code below is more or less a direct translation from Hansen's R
+code. Since this is a translation from R of a translation from Gauss,
+this code will not necessarily follow best practices for Julia. 
+
+
+~~~~{.julia}
+"""
+    b_est_original(y)
+
+Estimate AR(1) model with intercept and time trend
+
+    y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
+
+# Arguments
+- `y`: vector 
+
+# Returns 
+- `θ`: estimated coefficients
+- `se`: standard errors
+- `e`: residuals 
+"""
+function b_est_original(yin)
+  T = length(yin)
+  x = [ones(T-1) 2:T yin[1:(T-1)]]
+  y = yin[2:T]
+  θ = x'*x \ x'y
+  e = y - x*θ
+  se = sqrt.(diag(inv(x'*x) *(e'*e))./(T-4))
+  (θ=θ,se=se,e=e)
+end
+"""
+    ar1_original(y0, a, e, rindex=T->rand(1:length(e), T))
+
+Simulate AR1 model by sampling errors from e with replacement. 
+  
+    y[t] = a*y[t-1] + ϵ[t]
+
+# Arguments 
+- `y0`: initial value for `y`
+- `a`: AR parameter
+- `e`: values of for error term. `ϵ = e[rindex(T)]]`
+- `rindex` function that returns random index in 1:length(e)
+  
+# Returns 
+- `y`: vector of length `T = length(e)`
+"""
+function ar1_original(y0, a, e, rindex=T->rand(1:length(e),T))
+  T = length(e)
+  y = Array{eltype(e)}(undef, T)
+  y[1] = abs(a)<1 ? y0 : zero(eltype(y))
+  et = e[rindex(T-1)]
+  for t in 2:T
+    y[t] = a*y[t-1] + et[t-1] 
+  end
+  y
+end
+~~~~~~~~~~~~~
+
+
+~~~~{.julia}
+"""
+    gridbootstrap(estimator, simulator, 
+                  grid::AbstractVector, 
+                  nboot=199)
+  
+Computes grid bootstrap estimates a single parameter model. 
+
+For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. 
+ 
+
+# Arguments
+- `estimator` function of output of `simulator` that returns a
+        2-tuple containing an estimate of α and its standard error.  
+- `simulator` function that given `α` simulates data that can be used to estimate α
+- `grid` grid of parameter values. For each value, `nboot`
+        datasets will be simulated and estimates computed.  
+- `nboot` 
+
+# Returns
+- `ba` hatα - α for each grid value and simulated dataset
+- `t` t-stat  for each grid value and simulated dataset
+"""
+function gridbootstrap(estimator, simulator,
+                       grid::AbstractVector,
+                       nboot=199)
+  g = length(grid)
+  bootq = zeros(nboot, g)
+  ba    = zeros(nboot, g)
+  bootse = zeros(nboot,g)
+  for ak in 1:g
+    for j in 1:nboot 
+      (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak]))
+      ba[j,ak] = bootq[j,ak] - grid[ak]
+    end
+  end
+  ts = ba./bootse
+  (ba=ba, t=ts)
+end
+~~~~~~~~~~~~~
+
+
+
+
+## Improving performance
+
+Now, let's run this code and time it. Note that we are running this
+with only 50 grid points and 199 bootstrap replications. In real use,
+you would want more like 999 bootstrap replications or more, and perhaps more
+grid points. 
+
+~~~~{.julia}
+# simulate some data
+using Random, BenchmarkTools, Profile
+T = 200
+e = randn(T)
+y0 = 0
+a = 0.9
+y = ar1_original(y0, a, e)
+est = b_est_original(y)
+αgrid = 0.84:(0.22/50):1.06
+nboot= 199
+wrapper(b_est) = function(x)
+  out=b_est(x)
+  (out.θ[3], out.se[3])
+end
+@btime (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+~~~~~~~~~~~~~
+
+
+~~~~
+4.051 s (365375 allocations: 222.07 MiB)
+~~~~
+
+
+
+
+
+To make code faster, we should begin by profiling.
+
+~~~~{.julia}
+julia> Profile.clear();
+
+julia> Profile.init(n=10^7,delay=0.0001);
+
+julia> @profile (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+                               αgrid, 999);
+
+julia> Profile.print(noisefloor=2.0)
+3883   ./client.jl:431; include(::String)
+ 3883 ./none:0; (::getfield(Weave, Symbol("#kw##weave")))(:...
+  3883 ...lia/dev/Weave/src/Weave.jl:121; #weave#16(::String, ::Symbol, ::String, :...
+   3883 ./none:0; (::getfield(Base, Symbol("#kw##run")))(::N...
+    3883 ...julia/dev/Weave/src/run.jl:94; #run#34(::String, ::Symbol, ::String, ::...
+     3883 ...ulia/dev/Weave/src/run.jl:130; run_chunk(::Weave.CodeChunk, ::Weave.We...
+      3883 ...ulia/dev/Weave/src/run.jl:287; eval_chunk(::Weave.CodeChunk, ::Weave.R...
+       3883 ...lia/dev/Weave/src/run.jl:208; run_code(::Weave.CodeChunk, ::Weave.Re...
+        3883 ...lia/dev/Weave/src/run.jl:230; capture_output(::Expr, ::Module, ::Bo...
+         3883 ./boot.jl:330; eval
+          3868 ...ap/src/gridbootstrap.jl:32; gridbootstrap(::getfield(Main.WeaveSa...
+           3719 ./none:2; (::getfield(Main.WeaveSandBox12, Sym...
+            3489 ...GridBootstrap/src/ar.jl:50; b_est_original(::Array{Float64,1})
+             3464 ...rAlgebra/src/dense.jl:730; inv(::Array{Float64,2})
+              3448 ...nearAlgebra/src/lu.jl:410; inv!
+               3430 ...Algebra/src/lapack.jl:978; getri!(::Array{Float64,2}, ::Arra...
+           134  ./none:1; (::getfield(Main.WeaveSandBox12, Sym...
+            131 ...GridBootstrap/src/ar.jl:18; ar1_original(::Int64, ::Float64, ::A...
+             105 ...GridBootstrap/src/ar.jl:21; ar1_original(::Int64, ::Float64, ::A...
+              35 ./abstractarray.jl:981; getindex
+               25 ./multidimensional.jl:670; _getindex
+                18 ./multidimensional.jl:684; _unsafe_getindex(::IndexLinear, ::...
+                 18 ./multidimensional.jl:690; _unsafe_getindex!
+                  18 ./multidimensional.jl:694; macro expansion
+                   18 ./cartesian.jl:64; macro expansion
+                    15 ./multidimensional.jl:699; macro expansion
+                     15 ./array.jl:728; getindex
+              23 ./boot.jl:404; #1
+              47 ...ridBootstrap/src/ar.jl:17; #1
+               47 ...2/Random/src/Random.jl:260; rand
+                47 .../Random/src/Random.jl:257; rand
+                 47 .../Random/src/Random.jl:256; rand
+                  47 .../Random/src/Random.jl:243; rand!(::Random.MersenneTwister, :...
+                   47 ...Random/src/Random.jl:248; rand!
+                    19 ./array.jl:766; setindex!
+3883   ./task.jl:268; (::getfield(Revise, Symbol("##79#81")){RE...
+ 3883 .../Revise/D6h31/src/Revise.jl:954; run_backend(::REPL.REPLBackend)
+115070 ./task.jl:327; task_done_hook(::Task)
+
+~~~~~~~~~~~~~
+
+
+
+
+
+Profile.jl works very simply. Every 0.0001 seconds, the line of code
+being executed gets recorded. `Profile.print` shows the count of how
+many times each line of code got recorded. From the output (these
+numbers can vary quite a bit from run to run), we see
+there were 640 ticks in ` gridbootstrap_original` (exact numbers will
+vary on each execution, but relative ones should be similar), and
+almost all of these occurred within `inv`.  If we want the
+code to be faster, we should focus on these lines.  Calling both `inv`
+and `\` is redundant; we should combine these computations.
+
+~~~~{.julia}
+"""
+    b_est_mldivide(y)
+
+  Estimate AR(1) model with intercept and time trend. 
+
+    y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
+
+# Arguments    
+- `y`: vector 
+
+# Returns
+- `θ`: estimated coefficients
+- `se`: standard errors
+- `e`: residuals 
+"""
+function b_est_mldivide(yin)
+  T = length(yin)
+  x = [ones(T-1) 2:T yin[1:(T-1)]]
+  y = yin[2:T]
+  tmp = x'*x \ [x'*y I]
+  θ = tmp[:,1]
+  ixx = tmp[:,2:4]
+  e = y - x*θ
+  se = sqrt.(diag(ixx *(e'*e))./(T-4))
+  (θ=θ,se=se,e=e)
+end
+~~~~~~~~~~~~~
+
+
+~~~~{.julia}
+julia> @btime (b,t) = gridbootstrap(wrapper(b_est_mldivide), a->ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+  189.180 ms (385673 allocations: 208.60 MiB)
+
+~~~~~~~~~~~~~
+
+
+
+
+From this, we get a speedup by about a factor of 4 on my computer.
+
+
+~~~~{.julia}
+julia> Profile.clear();
+
+julia> @profile (b,t) = gridbootstrap(wrapper(b_est_mldivide), a->ar1_original(y0, a, est.e),
+                               αgrid, 999);
+
+julia> Profile.print(noisefloor=2.0)
+195  ./client.jl:431; include(::String)
+ 195 ./none:0; (::getfield(Weave, Symbol("#kw##weave")))(:...
+  195 ...ulia/dev/Weave/src/Weave.jl:121; #weave#16(::String, ::Symbol, ::String, ::...
+   195 ./none:0; (::getfield(Base, Symbol("#kw##run")))(::N...
+    195 ...julia/dev/Weave/src/run.jl:94; #run#34(::String, ::Symbol, ::String, ::D...
+     195 ...ulia/dev/Weave/src/run.jl:130; run_chunk(::Weave.CodeChunk, ::Weave.Wea...
+      195 ...ulia/dev/Weave/src/run.jl:287; eval_chunk(::Weave.CodeChunk, ::Weave.R...
+       195 ...ulia/dev/Weave/src/run.jl:208; run_code(::Weave.CodeChunk, ::Weave.Rep...
+        195 ...lia/dev/Weave/src/run.jl:230; capture_output(::Expr, ::Module, ::Boo...
+         195 ./boot.jl:330; eval
+          184 ...rap/src/gridbootstrap.jl:32; gridbootstrap(::getfield(Main.WeaveSa...
+           53  ./none:1; (::getfield(Main.WeaveSandBox12, Sym...
+            51 ...GridBootstrap/src/ar.jl:18; ar1_original(::Int64, ::Float64, ::Ar...
+             45 ...GridBootstrap/src/ar.jl:21; ar1_original(::Int64, ::Float64, ::A...
+              17 ./boot.jl:404; #1
+              22 ...ridBootstrap/src/ar.jl:17; #1
+               22 ...2/Random/src/Random.jl:260; rand
+                22 .../Random/src/Random.jl:257; rand
+                 22 .../Random/src/Random.jl:256; rand
+                  22 .../Random/src/Random.jl:243; rand!(::Random.MersenneTwister, :...
+                   22 ...Random/src/Random.jl:248; rand!
+                    9 ./array.jl:766; setindex!
+           127 ./none:2; (::getfield(Main.WeaveSandBox12, Sym...
+            35 ...GridBootstrap/src/ar.jl:72; b_est_mldivide(::Array{Float64,1})
+             13 ./abstractarray.jl:1313; hcat
+              13 ./abstractarray.jl:1311; typed_hcat
+             14 ./array.jl:440; ones
+              14 ./array.jl:442; ones
+               9 ./array.jl:446; ones
+            45 ...GridBootstrap/src/ar.jl:74; b_est_mldivide(::Array{Float64,1})
+             22 ...rAlgebra/src/generic.jl:970; \(::Array{Float64,2}, ::Array{Float6...
+              14 ...inearAlgebra/src/lu.jl:142; lu
+               14 ...inearAlgebra/src/lu.jl:142; lu
+                14 ...nearAlgebra/src/lu.jl:142; #lu#122
+                 13 ./none:0; #lu!
+                  12 ...nearAlgebra/src/lu.jl:40; #lu!#118(::Bool, ::typeof(LinearA...
+                   12 ...lgebra/src/lapack.jl:550; getrf!
+            32 ...GridBootstrap/src/ar.jl:77; b_est_mldivide(::Array{Float64,1})
+             17 ./arraymath.jl:39; -
+              17 ./broadcast.jl:752; broadcast(::typeof(-), ::Array{Floa...
+               11 ./broadcast.jl:798; materialize
+                10 ./broadcast.jl:818; copy
+                 10 ./broadcast.jl:842; copyto!
+                  10 ./broadcast.jl:887; copyto!
+                   10 ./simdloop.jl:77; macro expansion
+                    8 ./array.jl:766; macro expansion
+             11 ...arAlgebra/src/matmul.jl:65; *
+              11 ...rAlgebra/src/matmul.jl:363; gemv!(::Array{Float64,1}, ::Char, :...
+               11 ...earAlgebra/src/blas.jl:597; gemv!(::Char, ::Float64, ::Array{F...
+195  ./task.jl:268; (::getfield(Revise, Symbol("##79#81")){REP...
+ 195 .../Revise/D6h31/src/Revise.jl:954; run_backend(::REPL.REPLBackend)
+6132 ./task.jl:327; task_done_hook(::Task)
+
+~~~~~~~~~~~~~
+
+
+
+
+
+Now, the most time consuming parts of the code are, unsurprisingly,
+the call to ` \`, and, perhaps surprisingly, ` hcat` from
+creating ` x`. Allocating and copying memory is relatively slow. The
+creation of ` x` involves both. We can avoid creating `x` by just
+accumulating $X'y$ and $X'X$ in a loop. 
+
+~~~~{.julia}
+""" 
+    b_est_nox(y)
+
+  Estimate AR(1) model with intercept and time trend. 
+
+    y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
+
+# Arguments
+- `y`: vector 
+
+# Returns
+- `θ`: estimated coefficients
+- `se`: standard errors
+- `e`: residualas 
+"""
+function b_est_nox(yin)
+  T = length(yin)
+  xx = zeros(eltype(yin),3,3)
+  xy = zeros(eltype(yin),3)
+  @inbounds @simd for t in 2:T
+    xx[1,3] += yin[t-1]
+    xx[2,3] += t*yin[t-1]
+    xx[3,3] += yin[t-1]^2
+    xy[1] += yin[t]
+    xy[2] += t*yin[t]
+    xy[3] += yin[t-1]*yin[t]
+  end 
+  xx[1,1] = T-1 # = 1'*1
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(p+1:T)
+  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)  
+  xx[3,1] = xx[1,3]
+  xx[3,2] = xx[2,3]
+  tmp = xx \ [xy I]
+  θ = tmp[:,1]
+  ixx = tmp[:,2:4]
+  e = similar(yin,T-1)
+  @simd for t in 2:T
+    @inbounds e[t-1] = yin[t] - θ[1] - θ[2]*t - θ[3]*yin[t-1]
+  end
+  se = sqrt.(diag(ixx *(e'*e))./(T-4))
+  (θ=θ,se=se,e=e)
+end
+~~~~~~~~~~~~~
+
+
+~~~~{.julia}
+@btime (b,t) = gridbootstrap(wrapper(b_est_nox), a->ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+~~~~~~~~~~~~~
+
+
+~~~~
+109.486 ms (304481 allocations: 89.82 MiB)
+~~~~
+
+
+
+
+
+We have further cut the time by a factor of two. However, this performance
+optimization has been costly in terms of readability and extensibility
+of our code. If we wanted to fit an AR(p) model instead of AR(1), the
+` b_est_nox` function would be more difficult to modify than the
+` b_est_mldivide` version. 
+
+EXERCISE: Read [the Performance Tips section of Julia
+Manual](https://docs.julialang.org/en/v1/manual/performance-tips/) and
+incorporate some of these tips into the above code.
+
+EXERCISE: write a version of ` b_est` that avoids allocating the full
+$T \times 3$ $X$ matrix, but can still be generalized to an AR(p) model. 
+
+EXERCISE: examine how the relative performance of these versions of `
+b_est` vary with ` T`, ` nboot`, and the number of grid points. 
+
+EXERCISE: the Julia package ` StaticArrays.jl` provides an alternative
+array implementation that is often much faster than ` Base.Array`. Try
+implementing ` b_est` using ` StaticArrays.jl`. You will likely need to
+use mutable arrays (see ` @MMatrix` and ` @MVector`). Note that ` inv` of
+a small array will be substantially faster when using ` StaticArray.jl`
+instead of ` Base.Array`. 
+
+## Fastest version
+
+The fastest version of the code that I could write combines the ideas
+above. As above, it avoids allocating `x`. It also avoids allocating
+`e` by combining the simulation and estimation into a single
+loop. Finally, it uses mutable static arrays to ensure that operations
+on `xx` and `xy` have as little overhead as possible. Note that for
+small StaticArrays, `inv` will call a specialized, fast version, and
+ends up being faster than `\`. 
+
+~~~~{.julia}
+using StaticArrays
+~~~~~~~~~~~~~
+
+
+
+~~~~{.julia}
+"""
+    simulate_estimate_arp(y0, a, e, ar::Val{P}, rindex=T->rand(1:length(e),T)) 
+
+Simulates and estimates an AR(P) model. `y` is simulated as
+  
+   y[t] = a*y[t-1] + ϵ[t]
+  
+and the estimate of θ from 
+
+   y[t] = θ[1] + θ[2]t + θ[3] y[t-1] + ... + θ[P] y[t-P] + u[t] 
+
+is computed. 
+
+# Arguments
+- `y0` initial value of y
+- `a` AR(1) parameter
+- `e` error terms to sample from `ϵ[t] = e[rindex(1)]`
+- `ar::Val{P}` order of autoregressive model to estimate
+- `rindex` function that returns random index in 1:length(e)
+
+# Returns
+- `θ` estimated coefficients
+- `se` standard errors
+"""
+function simulate_estimate_arp(y0, a, e, ar::Val{P}=Val(1),
+                               rindex=()->rand(1:length(e))) where P
+  T = length(e)
+  length(a)==P || error("length(a) not equal to P")
+  xx = @MMatrix zeros(eltype(e),P+2, P+2)
+  xy = @MVector zeros(eltype(e),P+2)
+  yy = zero(eltype(e))
+  xt = @MVector ones(eltype(e), P+2)
+  if (abs(a)<1)
+    xt[3:(P+2)] .= y0
+  else 
+    xt[3:(P+2)] .= 0.0
+  end
+  α = @MVector zeros(eltype(e),P+2)
+  @simd for i = 1:P
+    α[2+i] = a[i]
+  end
+
+  xx[1,1] = T-P # = 1'*1
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - sum(1:P) # sum(P+1:T)
+  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - sum((1:P).^2) # sum((P+1:T).^2)  
+  @inbounds for t in (P+1):T
+    et = e[rindex()]
+    xt[2] = t
+    for i in 1:(P+2)
+      @simd for j in 3:(P+2)
+        xx[i,j] += xt[i]*xt[j]
+      end
+    end
+    y = dot(α, xt) + et
+    @simd for i in 1:(P+2)
+      xy[i] += xt[i]*y
+    end
+    yy += y^2
+    if (P>1)
+      xt[4:(P+2)] .= xt[3:(P+1)]
+    end
+    xt[3] = y
+  end
+  @inbounds for i in 3:(P+2)
+    for j in 1:(i-1)
+      xx[i,j] = xx[j,i]
+    end
+  end
+  ixx = inv(xx)
+  θ = ixx*xy
+  ee = yy - xy'*ixx*xy
+  se = sqrt.(abs.(diag(ixx *(ee))./(T-(2*P+2))))
+  (θ=θ,se=se)
+end
+~~~~~~~~~~~~~
+
+
+~~~~{.julia}
+estimator(y0=y0,e=est.e) = function(a) 
+  out = simulate_estimate_arp(y0,a,e)
+  (out.θ[3], out.se[3])
+end
+@btime  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
+~~~~~~~~~~~~~
+
+
+~~~~
+27.667 ms (111651 allocations: 4.80 MiB)
+~~~~
+
+
+
+
+On my computer, this version of the code is about 15 times faster than
+the original. 
+
+
+# Multi-threading
+
+Modern computers almost all have multiple cores. We can divide the
+time it takes our code by up to the number of cores we have (but
+usually less) by writing multi-threaded code. Multi-threaded code
+performs multiple tasks at once with shared memory. Before you begin
+writing multi-threaded code, you should make sure your code isn't
+already using all available cores. It is likely that the BLAS and
+Lapack libraries that Julia uses for linear algebra are
+multi-threaded. If you code is dominated by large matrix operations,
+it may already be using all available cores. In that case, there will
+not be much benefit from additional multi-threading.
+
+Once we have decided that the code might benefit from multi-threading,
+we should look for loops that can be multi-threaded. There is some
+small overhead from creating threads and communicating among
+them. Multi-threading generally works best for loops where each
+iteration involves substantial work, and each iteration is independent
+of all others. The loops over grid points and bootstrap repetitions in
+` gridbootstrap` are perfect candidates. We don't care about the order
+in which these loops get executed. The result of each iteration is
+(mostly) independent of all others. 
+
+Some care must be taken with random number generators and
+multi-threaded code. See
+[the Julia docs](https://docs.julialang.org/en/v1/manual/parallel-computing/index.html#Side-effects-and-mutable-function-arguments-1) for more information. 
+
+~~~~{.julia}
+"""
+    gridbootstrap_threaded(estimator, simulator, 
+                    grid::AbstractVector, 
+                    nboot=199)
+    
+Computes grid bootstrap estimates a single parameter model. 
+
+For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. 
+ 
+
+# Arguments
+- `estimator` function of output of `simulator` that returns a
+    2-tuple containing an estimate of α and its standard error.  
+- `simulator` function that given `α` and `rng`, simulates data
+    that can be used to estimate α 
+- `grid` grid of parameter values. For each value, `nboot`
+    datasets will be simulated and estimates computed.  
+- `nboot` 
+
+# Returns
+- `ba` hatα - α for each grid value and simulated dataset
+- `t` t-stat  for each grid value and simulated dataset
+"""
+function gridbootstrap_threaded(estimator, simulator,
+                                grid::AbstractVector,
+                                nboot=199; rng=rngarray(nthreads()))
+  g = length(grid)
+  bootq = zeros(nboot, g)
+  ba    = zeros(nboot, g)
+  bootse = zeros(nboot,g)
+  @threads for ak in 1:g
+    for j in 1:nboot 
+      (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak],rng[threadid()]))
+      ba[j,ak] = bootq[j,ak] - grid[ak]
+    end
+  end
+  ts = ba./bootse
+  (ba=ba, t=ts)
+end
+~~~~~~~~~~~~~
+
+
+~~~~{.julia}
+"""
+    rngarray(n)
+
+  Create `n` rng states that will not overlap for 10^20 steps.
+
+  Note: this will be unneeded in Julia 1.3 when thread-safe RNG is
+  included.
+"""
+function rngarray(n)
+  baserng =  MersenneTwister()
+  rng = Array{typeof(baserng)}(undef, Base.Threads.nthreads())
+  rng[1] = baserng
+  steps = big(10)^20 # randjump is precomputed for steps = big(10)^20
+  for i in 2:nthreads()
+    rng[i] = Future.randjump(rng[i-1], steps) 
+  end
+  rng
+end
+~~~~~~~~~~~~~
+
+
+
+
+Now, let's try multi-threading the original version of the code. 
+
+~~~~{.julia}
+using Base.Threads
+println("Single thread, original version")
+~~~~~~~~~~~~~
+
+
+~~~~
+Single thread, original version
+~~~~
+
+
+
+~~~~{.julia}
+@time begin # this is so slow that using btime is not so necessary
+  (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+                        αgrid, 199);
+end;
+~~~~~~~~~~~~~
+
+
+~~~~
+4.095579 seconds (428.66 k allocations: 225.018 MiB)
+~~~~
+
+
+
+~~~~{.julia}
+d
+rng = rngarray(nthreads())
+# make sure the threaded version is compiled before timing it
+(b,t) = gridbootstrap_threaded(wrapper(b_est_original),
+                               (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),
+                               αgrid, 2, rng=rng);
+println("$(nthreads()) threads, original version")
+~~~~~~~~~~~~~
+
+
+~~~~
+30 threads, original version
+~~~~
+
+
+
+~~~~{.julia}
+@time begin # this is so slow that using btime is not so necessary
+  (b,t) = gridbootstrap_threaded(wrapper(b_est_original),
+                                 (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),
+                                 αgrid, 199, rng=rng);
+end;
+~~~~~~~~~~~~~
+
+
+~~~~
+3.926075 seconds (6.56 M allocations: 322.348 MiB)
+~~~~
+
+
+
+
+
+The execution times are nearly identical on my computer. The reason is
+that the computation is dominated by the creation of ` X` and
+multiplying ` X'*X` and ` X'*y`. These operations are already
+multi-threaded in the BLAS version I have installed. It is possible
+first calling ` using LinearAlgebra; BLAS.set_num_threads(1)` would
+improve the performance of the multi-threaded bootstrap. 
+
+
+~~~~{.julia}
+println("Single thread, fastest version")
+~~~~~~~~~~~~~
+
+
+~~~~
+Single thread, fastest version
+~~~~
+
+
+
+~~~~{.julia}
+@btime  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
+~~~~~~~~~~~~~
+
+
+~~~~
+27.506 ms (111651 allocations: 4.80 MiB)
+~~~~
+
+
+
+~~~~{.julia}
+
+println("$(nthreads()) threads, fastest version")
+~~~~~~~~~~~~~
+
+
+~~~~
+30 threads, fastest version
+~~~~
+
+
+
+~~~~{.julia}
+estimator_threaded(y0=y0,e=est.e)=function(foo)
+  (a, rng) = foo
+  out=simulate_estimate_arp(y0,a,e,Val(1),()->rand(rng,1:length(e)))
+  (out.θ[3], out.se[3])
+end
+rng = rngarray(nthreads())
+@btime begin
+  (bs, ts) = gridbootstrap_threaded(estimator_threaded(),
+                                    (a,rng)->(a,rng), αgrid,
+                                    nboot, rng=rng)  
+end;
+~~~~~~~~~~~~~
+
+
+~~~~
+26.659 ms (111656 allocations: 4.96 MiB)
+~~~~
+
+
+
+
+
+Notice how the speedup from using multiple threads is far less than
+number of cores. On my computer, the threaded version of the code is
+about 4 times faster, even though my computer has 40 "cores" (or 20
+physical cores. My computer has 2 processors with 10 cores each, and each
+core is hyperthreaded into 2. The OS sees 40 processors, but half of
+them are sharing substantial resources). A speedup far less than the
+number of cores is typical. Creating and managing multiple threads
+creates some overhead. Moreover, cores must share various resources;
+most notably RAM and some cache. 
+
+# GPU
+
+Compared to CPUs, GPUs have a huge number of cores operating at a
+somewhat slower clockrate. GPUs also have their own separate memory,
+which they can access faster than CPUs access RAM.  These
+characteristics make GPUs well-suited to large parallel
+computations. Unfortunately, fully utilizing GPUs can require
+substantial changes to your code.
+
+## Array interface
+
+The easiest way to use a GPU in Julia is through a high level array
+interface. ` ArrayFire.jl`, ` CLArrays.jl`, and ` CuArrays.jl` each offer such
+interfaces. We will focus on ` CuArrays.jl` in these
+notes. ` CuArrays.jl` relies on Nvidia's CUDA platform, so it only
+works with Nvidia GPUs. Nvidia tends to dominate GPGPU, and the GPUs
+available on cedar.computecanada.ca and in my desktop are Nvidia. 
+
+Using CuArrays is simple, but has some limitations. You create arrays
+on the GPU using ` CuArray`. Any array level operation on these will
+then be performed efficiently on the GPU. This includes broadcast
+functions with ` .` and matrix multiplies. 
+
+~~~~{.julia}
+using CuArrays, Random, BenchmarkTools
+
+
+N = 1000
+M = 1000
+
+function cuarraydemo(N,M)
+  # wrapped in a  function so that the CuArrays are freed
+  # otherwise we will run out GPU memory later
+  A = randn(N,M);
+  b = randn(M,2);
+  println("Time on CPU")
+  function foo(A,b)
+    (A.^2)*b
+  end
+  @time c=foo(A,b);
+  @time c=foo(A,b);
+  A_gpu = CuArray(A); # copy of A in GPU memory
+  b_gpu = CuArray(b);
+  println("Computations on the GPU are fast")
+  # @btime does not work inside a function
+  @time CuArrays.@sync c_gpu=foo(A_gpu,b_gpu);
+  @time CuArrays.@sync c_gpu=foo(A_gpu,b_gpu);
+  println("But copying to and from GPU memory is not")
+  bar(A,b) =Array(foo(CuArray(A), CuArray(b))) 
+  @time c2=bar(A,b);
+  @time c2=bar(A,b);  
+end
+~~~~~~~~~~~~~
+
+
+~~~~
+cuarraydemo (generic function with 1 method)
+~~~~
+
+
+
+~~~~{.julia}
+julia> cuarraydemo(N,M);
+Time on CPU
+  0.001933 seconds (3 allocations: 7.645 MiB)
+  0.001850 seconds (3 allocations: 7.645 MiB)
+Computations on the GPU are fast
+  0.002993 seconds (84 allocations: 3.250 KiB)
+  0.000488 seconds (76 allocations: 2.844 KiB)
+But copying to and from GPU memory is not
+  0.012187 seconds (108 allocations: 15.309 MiB, 59.75% gc time)
+  0.004756 seconds (94 allocations: 15.308 MiB)
+
+~~~~~~~~~~~~~
+
+
+
+
+
+` CuArrays` also allow indexing, so you could use loops and other
+constructs. However, this will not be fast. ` CuArrays` by itself will be
+a good method to utilize GPUs when the code is dominated by operations
+on large arrays. 
+
+Unfortunately, the fastest version of our grid bootstrap code does not
+fit that description. A loop seems needed to generate $y$ due to the
+recursiveness of the AR(1) model. The fastest version of the code
+above involves many operations on small 3x3 arrays.
+
+EXERCISE: modify ` b_est_original` or ` b_est_mldivide` to utilize
+` CuArrays`. The approach taken in those functions involves some
+moderate sized matrices, so it may benefit from ` CuArrays`.
+
+
+## CUDAnative
+
+To parallelize the code above on a GPU, we will have to use a lower
+level interface to the GPU. We will the ` CUDAnative.jl` package. To
+explain how it works, we will begin with a simple example that just
+squares all the elements of an array. 
+
+Disclaimer: my understanding of CUDA and the inner workings of GPUs is
+far from complete. Some of the details in this section might be
+inaccurate. 
+
+A typical workflow with CUDAnative consists of 
+
+1. Allocate GPU memory and copying arrays into it with ` CuArray`.
+2. Decide how many threads and what configuration of threads to
+   launch.
+3. Each thread does some computation by running a "kernel" function.
+4. Copy result from GPU memory to CPU memory.
+
+In the code below, 1 happens in `cuarray_cudanative_compare`, 2 happens in the
+` square!` function, ` square_kernel!` is the kernel in 3, and 4 is just
+not done. 
+
+### Threads and blocks
+
+CUDA organizes GPU threads into blocks. I believe that the threads in
+a block all execute concurrently. Threads in the same block share some
+memory and registers. All current Nvidia GPUs have a maximum number of
+threads per block of 1024. Note that threads in the same block share
+registers[^reg], and different kernel functions will use different
+numbers of registers at once, so depending on the kernel function, you
+might be limited to fewer than 1024 threads per block. The number of registers
+available per block depends on your GPU. You can check your GPU
+characteristics by compiling and running the C++ program in 
+`$CUDA_PATH/samples/1_Utilities/deviceQuery/`. 
+Alternatively, you can access this information within Julia using
+` CUDAdrv.jl`.
+
+~~~~{.julia}
+using CUDAdrv
+println("Maximum threads per block $(attribute(device(), CUDAdrv.MAX_THREADS_PER_BLOCK))")
+~~~~~~~~~~~~~
+
+
+~~~~
+Maximum threads per block 1024
+~~~~
+
+
+
+~~~~{.julia}
+println("Maximum x blocks $(attribute(device(), CUDAdrv.MAX_GRID_DIM_X))")
+~~~~~~~~~~~~~
+
+
+~~~~
+Maximum x blocks 2147483647
+~~~~
+
+
+
+~~~~{.julia}
+println("Maximum registers per block $(attribute(device(), CUDAdrv.MAX_REGISTERS_PER_BLOCK))")
+~~~~~~~~~~~~~
+
+
+~~~~
+Maximum registers per block 65536
+~~~~
+
+
+
+
+
+As far as I can tell, there is no simple way to figure out how many
+registers a kernel function uses. It will depend both on the code you
+write and how the compiler optimizes the code. If you encounter
+cryptic error messages about CUDA resources unavailable, then try
+reducing the number of threads per block.
+
+You can execute more than 1024 threads by specifying a number of
+blocks. There is also a limit to the number of blocks, but it is
+rather large. In the code below, we set the number of blocks, so that
+` nblocks*nthreads >= length(A)`. Each thread then operates on a single
+element of ` A`. When the code is executed, each thread has a unique
+` threadIdx` and ` blockIdx` combination, and these are used to assign
+threads to elements of ` A`. The indices go from 1 to number of threads
+(or blocks). For convenience you can request threads and blocks to
+have up 3 dimensions, and there are ` threadIdx().y` and
+` threadIdx().z` for the additional dimensions.
+
+[^reg]: Processor registers are the fastest bits of memory on the
+    processor, and registers are where the actual addition,
+    multiplication, and other instructions are carried out. 
+
+~~~~{.julia}
+using CUDAnative
+
+function square!(A::CuArray)
+  n = length(A)
+  maxthreads = 1024
+  nthreads = min(maxthreads, n)
+  nblocks  = Int(ceil(n/nthreads))
+
+  @cuda threads=nthreads blocks=nblocks square_kernel!(A)
+  
+  return A
+end
+
+function square_kernel!(A)
+  i = threadIdx().x + (blockIdx().x-1)*blockDim().x
+  if (i<=length(A))
+    @inbounds A[i] *= A[i]
+  end
+  return nothing # CUDA kernels must return nothing
+end
+
+function cuarray_cudanative_compare(A)
+  A_gpu = CuArray(A);
+  println("CUDAnative square!")
+  @time CuArrays.@sync square!(A_gpu);
+  @time CuArrays.@sync square!(A_gpu);
+
+  println("CuArray A*=A")
+  A_gpu = CuArray(A);
+  @time CuArrays.@sync A_gpu .*= A_gpu;
+  @time CuArrays.@sync A_gpu .*= A_gpu;
+  return nothing
+end
+~~~~~~~~~~~~~
+
+
+~~~~
+cuarray_cudanative_compare (generic function with 1 method)
+~~~~
+
+
+
+~~~~{.julia}
+julia> cuarray_cudanative_compare(randn(N,M))
+CUDAnative square!
+  0.090951 seconds (20.21 k allocations: 1.951 MiB)
+  0.000242 seconds (21 allocations: 592 bytes)
+CuArray A*=A
+  0.000387 seconds (59 allocations: 2.953 KiB)
+  0.000248 seconds (52 allocations: 2.563 KiB)
+
+~~~~~~~~~~~~~
+
+
+
+
+### Kernel Limitations
+
+CUDA kernel functions execute on the GPU and in GPU memory. Since GPU
+memory is allocated and managed differently than RAM, many Julia
+functions will not work in CUDA kernels. Most importantly, Julia
+functions that allocate dynamically sized arrays will not work. This
+means that even matrix multiplication like ` θ = ixx*xy` will fail (if
+`ixx` or `xy` are dynamically allocated) since it allocates an array
+for ` θ`. You can, however, have local scalars, tuples, and `
+StaticArrays` within a kernel function. The key difference is that the
+sizes of these types are known at compile time. If `ixx` and `xy` are
+`StaticArrays`, then you can do something like `θ = ixx*xy`. Since the
+compiler knows the size of `ixx` and `xy`, the compiler also know the
+size of `θ`. However, even with ` StaticArrays` you must be careful
+with operations that that create new StaticArrays (like matrix
+multiplies). These will cause problems if called repeatedly within a
+loop.[^loops]
+
+[^loops]: If you create StaticArrays inside a loop, they get allocated
+    to the GPU's "dynamic shared memory." I believe a new allocation
+    happens each loop iteration. This will be slow, and there is a
+    fairly small amount of dynamic shared memory, of which you will
+    soon run out.
+
+It is possible to dynamicaaly allocate GPU memory within a kernel
+function, but it requires using the low-level interface to CUDA in 
+`CUDAnative.jl` and/or ` CUDAdrv.jl`. Moreoever, it is generally not a
+good idea to be dynamically allocating and freeing memory in each of
+the thousands of threads you execute.[^caveat]
+
+
+[^caveat]: There are situations where allocating shared memory is a
+    needed and a good idea, but these require some advanced techniques
+    that we will not cover.
+
+## GPU grid bootstrap
+
+~~~~{.julia}
+"""
+    argridbootstrap_gpu(e; αgrid = 0.84:(0.22/20):1.06,
+                          nboot=199, RealType = Float32)
+
+Computes grid bootstrap estimates for an AR(1) model. 
+
+For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. 
+ 
+# Arguments
+- `e` vector error terms that will be resampled with replacement
+        to generate bootstrap sample  
+- `grid` grid of parameter values. For each value, `nboot`
+        datasets will be simulated and estimates computed.  
+- `nboot` 
+- `RealType` type of numbers for GPU computation. On many GPUs,
+        Float32 will have better performance than Float64.
+
+# Returns
+- `ba` hatα - α for each grid value and simulated dataset
+- `t` t-stat  for each grid value and simulated dataset   
+"""
+function argridbootstrap_gpu(e, y0;
+                             grid = 0.84:(0.22/20):1.06,
+                             nboot=199, RealType = Float32)
+  g = length(grid)
+
+  P = 3
+  # Allocate GPU memory
+  bootq = CuArray(zeros(RealType, nboot, g))
+  ba    = CuArray(zeros(RealType, nboot, g))
+  bootse= CuArray(zeros(RealType, nboot,g))
+  αg = CuArray(RealType.(grid))
+  eg = CuArray(RealType.(e))
+  ei = Int.(ceil.(length(e).*CuArrays.rand(RealType,nboot,g,length(e))))
+
+  # use of registers in gridkernel! limits the maximum threads to less
+  # than the full 1024
+  maxthreads = sizeof(RealType)<=4 ? 512 : 256
+  gthreads =2^2
+  bthreads =maxthreads ÷ gthreads
+  bblocks = Int(ceil(nboot/bthreads))
+  gblocks = Int(ceil(g/gthreads))
+
+  @cuda threads=bthreads,gthreads blocks=bblocks,gblocks argridkernel!(ba,bootq,bootse,Val(1), eg, ei, αg)
+  ts = ba./bootse
+  (ba=collect(ba), t=collect(ts))
+end
+~~~~~~~~~~~~~
+
+
+~~~~{.julia}
+"""
+    argridkernel!(ba,bootq, bootse, ar::Val{P}, e, ei, αgrid) 
+
+GPU kernel for simulation and estimation of AR(P) model. 
+
+# Arguments (modified on return)
+- `ba`: `nboot × ngrid` array.  Will be filled with bootstrap estimates of α
+   grid values of true α 
+- `bootq`: `nboot × ngrid` array.  Will be filled with bootstrap
+   estimates of α
+- `bootse`: `nboot × ngrid` array.  Will be filled with standard
+   errors of α for each bootstrap repetition      
+
+
+# Arguments (not modified)
+- `ar::Val{P}` : autoregressive order for estimation. Simulated
+   model will always be AR(1) with 0 intercept and time trend, but
+   estimation will use an AR(P) model with intercept and time
+   trend. Only the AR(1) parameter estimate is included in `ba`,
+   `bootq`, and `bootse`.
+- `e` : error terms to draw with replacement
+- `ei` : `nboot × ngrid × length(e)` array of indices of `e` to
+         use to generate bootstrap sample1
+- `αgrid` : length `ngrid` values of AR(1) parameter to perform
+   bootstrap on.
+
+Returns nothing, but modifies in place `ba`, `bootq`, and `bootse`
+"""
+function argridkernel!(ba,bootq, bootse, 
+                       ar::Val{P}, e, ei, αgrid) where P
+  b = threadIdx().x +  (blockIdx().x-1)*blockDim().x  
+  ak= threadIdx().y + (blockIdx().y-1)*blockDim().y  
+  if (b>size(ba,1) || ak>size(ba,2))
+    return nothing
+  end
+  T = size(ei,3)
+  R = eltype(ba)
+  xx = zeros(MMatrix{P+2,P+2,R})
+  xy = zeros(MVector{P+2,R})
+  xt = zeros(MVector{P+2,R})
+  xt[1] = one(R)
+  yy = zero(R)
+  xx[1,1] = T-P 
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - (P+1)*P/2 #sum((P+1):T) 
+  xx[2,2] = (2*T+1)*T*(T+1)/6 - (2*P+1)*P*(P+1)/6 #sum((P+1:T).^2)
+  α = zeros(MVector{P+2, R})
+  α[3] = αgrid[ak]
+  @inbounds for t = (P+1):T
+    xt[2] = t
+    for i = 1:(P+2)
+      for j = 3:(P+2)
+        xx[i,j] += xt[i]*xt[j]
+      end
+    end
+    y = e[ei[b,ak,t]] + dot(α,xt)
+    for i in 1:(P+2)
+      xy[i] += xt[i]*y
+    end
+    yy += y*y
+    for i = 4:(P+2) # shift y lags
+      xt[i] = xt[i-1]
+    end
+    xt[3] = y
+  end
+  
+  for i = 3:(P+2)
+     for j = 1:(i-1)
+       xx[i,j] = xx[j,i]
+     end
+  end
+  ixx = inv(xx)
+  θ3 = zero(R)
+  for i = 1:3
+    θ3 += ixx[3,i]*xy[i]
+  end
+  ee = yy
+  for i = 1:3
+    for j = 1:3
+      ee -= xy[i]*ixx[i,j]*xy[j]
+    end
+  end
+  se3 = CUDAnative.sqrt(ixx[3,3]*ee/(T-(2*P+2)))
+  bootq[b,ak]  = θ3
+  bootse[b,ak] = se3
+  ba[b,ak] = bootq[b,ak] - αgrid[ak]
+  return nothing
+end
+~~~~~~~~~~~~~
+
+
+~~~~{.julia}
+@btime begin
+  grid = argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64);
+end;
+~~~~~~~~~~~~~
+
+
+~~~~
+Error: UndefVarError: αgrid not defined
+~~~~
+
+
+
+
+
+Compared to the fastest CPU code above, the GPU version takes about
+1/20th the time of the single-threaded CPU code, and about 1/5th the
+time of the 30-threaded CPU code. Considering that the two CPUs in my
+workstation together cost about 6 times more than the single GPU, the
+performance of the GPU code is quite good. Also, we carefully profiled
+and tuned the CPU code, but not the GPU code (although the GPU code
+does use all algorithmic improvements of the fastest CPU code). Profiling GPU kernel
+code requires using Nvidia's profiler, see
+[CUDAnative
+documentation](https://juliagpu.github.io/CUDAnative.jl/stable/man/performance.html)
+for information.
+
+

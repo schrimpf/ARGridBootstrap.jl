@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Paul Schrimpf">
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Coding for Performance - ARGridBootstrap.jl</title>
+        <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+        <link href="../css/font-awesome.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atelier-forest-light.min.css">
+        <link href="../assets/Documenter.css" rel="stylesheet">
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+        <script src="../js/jquery-1.10.2.min.js" defer></script>
+        <script src="../js/bootstrap-3.0.3.min.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script> 
+    </head>
+
+    <body>
+
+        <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+            <div class="container">
+
+                <!-- Collapsed navigation -->
+                <div class="navbar-header">
+                    <!-- Expander button -->
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="..">ARGridBootstrap.jl</a>
+                </div>
+
+                <!-- Expanded navigation -->
+                <div class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li >
+                                <a href="..">Package Documentation</a>
+                            </li>
+                            <li >
+                                <a href="../argridbootstrap.md">Coding for Performance</a>
+                            </li>
+                            <li class="dropdown">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">About <b class="caret"></b></a>
+                                <ul class="dropdown-menu">
+                                    
+<li >
+    <a href="../license/">License</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav navbar-right">
+                            <li>
+                                <a href="https://github.com/schrimpf/ARGridBootstrap.jl/edit/master/docs/argridboot.md"><i class="fa fa-github"></i> Edit on GitHub</a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+                <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="main active"><a href="#about-this-document">About this document</a></li>
+        <li class="main "><a href="#introduction">Introduction</a></li>
+        <li class="main "><a href="#grid-bootstrap">Grid bootstrap</a></li>
+            <li><a href="#improving-performance">Improving performance</a></li>
+            <li><a href="#fastest-version">Fastest version</a></li>
+        <li class="main "><a href="#multi-threading">Multi-threading</a></li>
+        <li class="main "><a href="#gpu">GPU</a></li>
+            <li><a href="#array-interface">Array interface</a></li>
+            <li><a href="#cudanative">CUDAnative</a></li>
+            <li><a href="#gpu-grid-bootstrap">GPU grid bootstrap</a></li>
+    </ul>
+</div></div>
+                <div class="col-md-9" role="main">
+
+<p><a href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a></p>
+<p>This work is licensed under a <a href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike
+4.0 International
+License</a> </p>
+<h3 -="-" id="about-this-document">About this document<a class="headerlink" href="#about-this-document" title="Permanent link">&para;</a></h3>
+<p>This document was created using Weave.jl. The code is available in
+<a href="https://github.com/schrimpf/ARGridBootstrap.jl">on github</a>. The same
+document generates both static webpages and associated (jupyter
+notebook)[argridboot.ipynb]. </p>
+<h1 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h1>
+<p>Today we will look into some methods to improve the speed of our
+code. Although speed is sometimes important, never forget that speed
+should be low on your list of priorities when writing code. You should
+prioritize correctness and maintainability ahead of
+performance. Nonetheless, performance does matter for some problems. </p>
+<p>If you have not already, be sure to read <a href="https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-tips-1">the Peformance Tips section of Julia Docs</a>. </p>
+<p>Also, read Rackauckas&rsquo;s notes on <a href="https://mitmath.github.io/18337/lecture2/optimizing">&ldquo;Optimizing Serial Code.&rdquo;</a>[^1]. </p>
+<h1 id="grid-bootstrap">Grid bootstrap<a class="headerlink" href="#grid-bootstrap" title="Permanent link">&para;</a></h1>
+<p>As a motivating example we will look at the gridded bootstrap of
+Hansen (1999)[^2]. </p>
+<!-- FIXME: DESCRIPTION.  -->
+
+<p>Gauss, Matlab, and R code implementing Hansen&rsquo;s method is available on
+<a href="https://www.ssc.wisc.edu/~bhansen/progs/restat_99.html">Hansen&rsquo;s
+website</a>. The
+Julia code below is more or less a direct translation from Hansen&rsquo;s R
+code. Since this is a translation from R of a translation from Gauss,
+this code will not necessarily follow best practices for Julia.</p>
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/ar.jl&quot;: No such file or directory
+Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/ar.jl&quot;: No such file or directory
+</code></pre>
+
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/gridbootstrap.jl&quot;: No such file or directory
+</code></pre>
+
+<h2 id="improving-performance">Improving performance<a class="headerlink" href="#improving-performance" title="Permanent link">&para;</a></h2>
+<p>Now, let&rsquo;s run this code and time it. Note that we are running this
+with only 50 grid points and 199 bootstrap replications. In real use,
+you would want more like 999 bootstrap replications or more, and perhaps more
+grid points. </p>
+<pre><code class="julia"># simulate some data
+using Random, BenchmarkTools, Profile
+T = 200
+e = randn(T)
+y0 = 0
+a = 0.9
+y = ar1_original(y0, a, e)
+est = b_est_original(y)
+αgrid = 0.84:(0.22/50):1.06
+nboot= 199
+wrapper(b_est) = function(x)
+  out=b_est(x)
+  (out.θ[3], out.se[3])
+end
+@btime (b,t) = gridbootstrap(wrapper(b_est_original), a-&gt;ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+</code></pre>
+
+<pre><code>535.910 ms (365375 allocations: 222.07 MiB)
+</code></pre>
+
+<p>To make code faster, we should begin by profiling.</p>
+<pre><code class="julia">julia&gt; Profile.clear();
+
+julia&gt; Profile.init(n=10^7,delay=0.0001);
+
+julia&gt; @profile (b,t) = gridbootstrap(wrapper(b_est_original), a-&gt;ar1_original(y0, a, est.e),
+                               αgrid, 999);
+
+julia&gt; Profile.print(noisefloor=2.0)
+2643 ./client.jl:431; include(::String)
+ 2643 ./none:0; (::getfield(Weave, Symbol(&quot;#kw##weave&quot;)))(::NamedTuple{(:out_path, :cache, :cache_path, :doctype, :mod, :args),Tuple{String,Symb...
+  2643 /home/paul/.julia/dev/Weave/src/Weave.jl:121; #weave#16(::String, ::Symbol, ::String, ::Dict{String,Bool}, ::Module, ::String, ::Nothing, ::String, ::Symbol, ::Bool, ::Noth...
+   2643 ./none:0; (::getfield(Base, Symbol(&quot;#kw##run&quot;)))(::NamedTuple{(:doctype, :mod, :out_path, :args, :fig_path, :fig_ext, :cache_path, :cache...
+    2643 /home/paul/.julia/dev/Weave/src/run.jl:94; #run#34(::String, ::Module, ::String, ::Dict{String,Bool}, ::String, ::Nothing, ::String, ::Symbol, ::Bool, ::typeof(run), ::W...
+     2643 /home/paul/.julia/dev/Weave/src/run.jl:130; run_chunk(::Weave.CodeChunk, ::Weave.WeaveDoc, ::Weave.Report, ::Module)
+      2643 /home/paul/.julia/dev/Weave/src/run.jl:287; eval_chunk(::Weave.CodeChunk, ::Weave.Report, ::Module)
+       2643 /home/paul/.julia/dev/Weave/src/run.jl:208; run_code(::Weave.CodeChunk, ::Weave.Report, ::Module)
+        2643 /home/paul/.julia/dev/Weave/src/run.jl:230; capture_output(::Expr, ::Module, ::Bool, ::Bool, ::Bool, ::Bool)
+         2643 ./boot.jl:330; eval
+          2600 /home/paul/.julia/dev/ARGridBootstrap/src/gridbootstrap.jl:32; gridbootstrap(::getfield(Main, Symbol(&quot;##6#7&quot;)){typeof(b_est_original)}, ::getfield(Main, Symbol(&quot;##11#12&quot;)), ::StepRangeL...
+           181  ./none:1; (::getfield(Main, Symbol(&quot;##11#12&quot;)))(::Float64)
+            178 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:18; ar1_original(::Int64, ::Float64, ::Array{Float64,1})
+             159 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:21; ar1_original(::Int64, ::Float64, ::Array{Float64,1}, ::getfield(ARGridBootstrap, Symbol(&quot;##1#2&quot;)){Array{Float64,1}})
+              137 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:17; #1
+               137 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:260; rand
+                137 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:257; rand
+                 137 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:256; rand
+                  137 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:243; rand!(::MersenneTwister, ::Array{Int64,1}, ::UnitRange{Int64})
+                   137 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:248; rand!
+           2403 ./none:2; (::getfield(Main, Symbol(&quot;##6#7&quot;)){typeof(b_est_original)})(::Array{Float64,1})
+            2269 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:50; b_est_original(::Array{Float64,1})
+             2242 ...ld/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/dense.jl:730; inv(::Array{Float64,2})
+              2214 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lu.jl:410; inv!
+               2205 .../julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lapack.jl:978; getri!(::Array{Float64,2}, ::Array{Int32,1})
+
+</code></pre>
+
+<p>Profile.jl works very simply. Every 0.0001 seconds, the line of code
+being executed gets recorded. <code>Profile.print</code> shows the count of how
+many times each line of code got recorded. From the output (these
+numbers can vary quite a bit from run to run), we see
+there were 640 ticks in <code>gridbootstrap_original</code> (exact numbers will
+vary on each execution, but relative ones should be similar), and
+almost all of these occurred within <code>inv</code>.  If we want the
+code to be faster, we should focus on these lines.  Calling both <code>inv</code>
+and <code>\</code> is redundant; we should combine these computations.</p>
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/ar.jl&quot;: No such file or directory
+</code></pre>
+
+<pre><code class="julia">julia&gt; @btime (b,t) = gridbootstrap(wrapper(b_est_mldivide), a-&gt;ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+  117.935 ms (385673 allocations: 208.60 MiB)
+
+</code></pre>
+
+<p>From this, we get a speedup by about a factor of 4 on my computer.</p>
+<pre><code class="julia">julia&gt; Profile.clear();
+
+julia&gt; @profile (b,t) = gridbootstrap(wrapper(b_est_mldivide), a-&gt;ar1_original(y0, a, est.e),
+                               αgrid, 999);
+
+julia&gt; Profile.print(noisefloor=2.0)
+489 ./client.jl:431; include(::String)
+ 489 ./none:0; (::getfield(Weave, Symbol(&quot;#kw##weave&quot;)))(::NamedTuple{(:out_path, :cache, :cache_path, :doctype, :mod, :args),Tuple{String,Symbo...
+  489 /home/paul/.julia/dev/Weave/src/Weave.jl:121; #weave#16(::String, ::Symbol, ::String, ::Dict{String,Bool}, ::Module, ::String, ::Nothing, ::String, ::Symbol, ::Bool, ::Nothi...
+   489 ./none:0; (::getfield(Base, Symbol(&quot;#kw##run&quot;)))(::NamedTuple{(:doctype, :mod, :out_path, :args, :fig_path, :fig_ext, :cache_path, :cache...
+    489 /home/paul/.julia/dev/Weave/src/run.jl:94; #run#34(::String, ::Module, ::String, ::Dict{String,Bool}, ::String, ::Nothing, ::String, ::Symbol, ::Bool, ::typeof(run), ::W...
+     489 /home/paul/.julia/dev/Weave/src/run.jl:130; run_chunk(::Weave.CodeChunk, ::Weave.WeaveDoc, ::Weave.Report, ::Module)
+      489 /home/paul/.julia/dev/Weave/src/run.jl:287; eval_chunk(::Weave.CodeChunk, ::Weave.Report, ::Module)
+       489 /home/paul/.julia/dev/Weave/src/run.jl:208; run_code(::Weave.CodeChunk, ::Weave.Report, ::Module)
+        489 /home/paul/.julia/dev/Weave/src/run.jl:230; capture_output(::Expr, ::Module, ::Bool, ::Bool, ::Bool, ::Bool)
+         489 ./boot.jl:330; eval
+          437 /home/paul/.julia/dev/ARGridBootstrap/src/gridbootstrap.jl:32; gridbootstrap(::getfield(Main, Symbol(&quot;##6#7&quot;)){typeof(b_est_mldivide)}, ::getfield(Main, Symbol(&quot;##16#17&quot;)), ::StepRangeLe...
+           154 ./none:1; (::getfield(Main, Symbol(&quot;##16#17&quot;)))(::Float64)
+            150 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:18; ar1_original(::Int64, ::Float64, ::Array{Float64,1})
+             110 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:21; ar1_original(::Int64, ::Float64, ::Array{Float64,1}, ::getfield(ARGridBootstrap, Symbol(&quot;##1#2&quot;)){Array{Float64,1}})
+              84 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:17; #1
+               84 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:260; rand
+                84 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:257; rand
+                 84 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:256; rand
+                  84 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:243; rand!(::MersenneTwister, ::Array{Int64,1}, ::UnitRange{Int64})
+                   81 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/Random/src/Random.jl:248; rand!
+             35  /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:23; ar1_original(::Int64, ::Float64, ::Array{Float64,1}, ::getfield(ARGridBootstrap, Symbol(&quot;##1#2&quot;)){Array{Float64,1}})
+              20 ./float.jl:399; *
+           268 ./none:2; (::getfield(Main, Symbol(&quot;##6#7&quot;)){typeof(b_est_mldivide)})(::Array{Float64,1})
+            106 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:72; b_est_mldivide(::Array{Float64,1})
+             95 ./abstractarray.jl:1313; hcat
+              93 ./abstractarray.jl:1311; typed_hcat
+               42 ./abstractarray.jl:1341; _typed_hcat(::Type{Float64}, ::Tuple{Array{Float64,1},UnitRange{Int64},Array{Float64,1}})
+                42 ./tuple.jl:24; getindex
+               27 ./abstractarray.jl:1343; _typed_hcat(::Type{Float64}, ::Tuple{Array{Float64,1},UnitRange{Int64},Array{Float64,1}})
+                27 ./abstractarray.jl:1074; setindex!
+                 23 ./multidimensional.jl:712; _setindex!
+                  23 ./multidimensional.jl:717; _unsafe_setindex!(::IndexLinear, ::Array{Float64,2}, ::UnitRange{Int64}, ::Base.Slice{Base.OneTo{Int64}}, ::UnitRange{...
+                   23 ./multidimensional.jl:724; macro expansion
+                    19 ./cartesian.jl:64; macro expansion
+                     12 ./multidimensional.jl:730; macro expansion
+                      6 ./range.jl:595; iterate
+                       6 ./promotion.jl:403; ==
+            111 /home/paul/.julia/dev/ARGridBootstrap/src/ar.jl:74; b_est_mldivide(::Array{Float64,1})
+             41 .../julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/generic.jl:970; \(::Array{Float64,2}, ::Array{Float64,2})
+              17 .../src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/factorization.jl:87; \(::LinearAlgebra.LU{Float64,Array{Float64,2}}, ::Array{Float64,2})
+               17 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lu.jl:342; ldiv!
+                15 .../julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lapack.jl:952; getrs!(::Char, ::Array{Float64,2}, ::Array{Int32,1}, ::Array{Float64,2})
+              24 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lu.jl:142; lu
+               24 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lu.jl:142; lu
+                24 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lu.jl:142; #lu#122
+                 19 ./none:0; #lu!
+                  19 /build/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lu.jl:40; #lu!#118(::Bool, ::typeof(LinearAlgebra.lu!), ::Array{Float64,2}, ::Val{true})
+                   19 ...julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/lapack.jl:550; getrf!
+             38 ...d/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/matmul.jl:143; *
+              38 ...d/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/matmul.jl:282; mul!
+               38 ...d/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/matmul.jl:223; mul!
+                37 .../julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/matmul.jl:390; syrk_wrapper!(::Array{Float64,2}, ::Char, ::Array{Float64,2})
+                 37 ...d/julia/src/julia-1.2.0/usr/share/julia/stdlib/v1.2/LinearAlgebra/src/blas.jl:1333; syrk!(::Char, ::Char, ::Float64, ::Array{Float64,2}, ::Float64, ::Array{Float64,2})
+
+</code></pre>
+
+<p>Now, the most time consuming parts of the code are, unsurprisingly,
+the call to <code>\</code>, and, perhaps surprisingly, <code>hcat</code> from
+creating <code>x</code>. Allocating and copying memory is relatively slow. The
+creation of <code>x</code> involves both. We can avoid creating <code>x</code> by just
+accumulating $X&rsquo;y$ and $X&rsquo;X$ in a loop. </p>
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/ar.jl&quot;: No such file or directory
+</code></pre>
+
+<pre><code class="julia">@btime (b,t) = gridbootstrap(wrapper(b_est_nox), a-&gt;ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+</code></pre>
+
+<pre><code>67.844 ms (304481 allocations: 89.82 MiB)
+</code></pre>
+
+<p>We have further cut the time by a factor of two. However, this performance
+optimization has been costly in terms of readability and extensibility
+of our code. If we wanted to fit an AR(p) model instead of AR(1), the
+<code>b_est_nox</code> function would be more difficult to modify than the
+<code>b_est_mldivide</code> version. </p>
+<p>EXERCISE: Read <a href="https://docs.julialang.org/en/v1/manual/performance-tips/">the Performance Tips section of Julia
+Manual</a> and
+incorporate some of these tips into the above code.</p>
+<p>EXERCISE: write a version of <code>b_est</code> that avoids allocating the full
+$T \times 3$ $X$ matrix, but can still be generalized to an AR(p) model. </p>
+<p>EXERCISE: examine how the relative performance of these versions of <code>b_est</code> vary with <code>T</code>, <code>nboot</code>, and the number of grid points. </p>
+<p>EXERCISE: the Julia package <code>StaticArrays.jl</code> provides an alternative
+array implementation that is often much faster than <code>Base.Array</code>. Try
+implementing <code>b_est</code> using <code>StaticArrays.jl</code>. You will likely need to
+use mutable arrays (see <code>@MMatrix</code> and <code>@MVector</code>). Note that <code>inv</code> of
+a small array will be substantially faster when using <code>StaticArray.jl</code>
+instead of <code>Base.Array</code>. </p>
+<h2 id="fastest-version">Fastest version<a class="headerlink" href="#fastest-version" title="Permanent link">&para;</a></h2>
+<p>The fastest version of the code that I could write combines the ideas
+above. As above, it avoids allocating <code>x</code>. It also avoids allocating
+<code>e</code> by combining the simulation and estimation into a single
+loop. Finally, it uses mutable static arrays to ensure that operations
+on <code>xx</code> and <code>xy</code> have as little overhead as possible. Note that for
+small StaticArrays, <code>inv</code> will call a specialized, fast version, and
+ends up being faster than <code>\</code>. </p>
+<pre><code class="julia">using StaticArrays
+</code></pre>
+
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/ar.jl&quot;: No such file or directory
+</code></pre>
+
+<pre><code class="julia">estimator(y0=y0,e=est.e) = function(a) 
+  out = simulate_estimate_arp(y0,a,e)
+  (out.θ[3], out.se[3])
+end
+@btime  (b,t) = gridbootstrap(estimator(), a-&gt;a, αgrid, nboot);
+</code></pre>
+
+<pre><code>26.717 ms (111651 allocations: 4.80 MiB)
+</code></pre>
+
+<p>On my computer, this version of the code is about 15 times faster than
+the original. </p>
+<h1 id="multi-threading">Multi-threading<a class="headerlink" href="#multi-threading" title="Permanent link">&para;</a></h1>
+<p>Modern computers almost all have multiple cores. We can divide the
+time it takes our code by up to the number of cores we have (but
+usually less) by writing multi-threaded code. Multi-threaded code
+performs multiple tasks at once with shared memory. Before you begin
+writing multi-threaded code, you should make sure your code isn&rsquo;t
+already using all available cores. It is likely that the BLAS and
+Lapack libraries that Julia uses for linear algebra are
+multi-threaded. If you code is dominated by large matrix operations,
+it may already be using all available cores. In that case, there will
+not be much benefit from additional multi-threading.</p>
+<p>Read <a href="https://mitmath.github.io/18337/lecture5/parallelism_overview">&ldquo;The Basics of Single Node Parallel Computing&rdquo;</a>
+Rackauckus (2019)[@rackauckus2019b].</p>
+<p>Once we have decided that the code might benefit from multi-threading,
+we should look for loops (or other independent tasks) that can be
+multi-threaded. There is some overhead from creating threads and
+communicating among them. Multi-threading generally works best for
+loops where each iteration involves substantial work, and each
+iteration is independent of all others. The loops over grid points and
+bootstrap repetitions in <code>gridbootstrap</code> are perfect candidates. We
+don&rsquo;t care about the order in which these loops get executed. The
+result of each iteration is (mostly) independent of all others.</p>
+<p>Some care must be taken with random number generators and
+multi-threaded code. See
+<a href="https://docs.julialang.org/en/v1/manual/parallel-computing/index.html#Side-effects-and-mutable-function-arguments-1">the Julia docs</a> for more information. </p>
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/gridbootstrap.jl&quot;: No such file or directory
+</code></pre>
+
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/gridbootstrap.jl&quot;: No such file or directory
+</code></pre>
+
+<p>Now, let&rsquo;s try multi-threading the original version of the code. </p>
+<pre><code class="julia">using Base.Threads
+println(&quot;Single thread, original version&quot;)
+</code></pre>
+
+<pre><code>Single thread, original version
+</code></pre>
+
+<pre><code class="julia">@time begin # this is so slow that using btime is not so necessary
+  (b,t) = gridbootstrap(wrapper(b_est_original), a-&gt;ar1_original(y0, a, est.e),
+                        αgrid, 199);
+end;
+</code></pre>
+
+<pre><code>0.629153 seconds (428.66 k allocations: 225.018 MiB, 4.14% gc time)
+</code></pre>
+
+<pre><code class="julia">
+rng = rngarray(nthreads())
+# make sure the threaded version is compiled before timing it
+(b,t) = gridbootstrap_threaded(wrapper(b_est_original),
+                               (a, rng)-&gt;ar1_original(y0, a, est.e, n-&gt;rand(rng,1:(T-1),n)),
+                               αgrid, 2, rng=rng);
+println(&quot;$(nthreads()) threads, original version&quot;)
+</code></pre>
+
+<pre><code>30 threads, original version
+</code></pre>
+
+<pre><code class="julia">@time begin # this is so slow that using btime is not so necessary
+  (b,t) = gridbootstrap_threaded(wrapper(b_est_original),
+                                 (a, rng)-&gt;ar1_original(y0, a, est.e, n-&gt;rand(rng,1:(T-1),n)),
+                                 αgrid, 199, rng=rng);
+end;
+</code></pre>
+
+<pre><code>15.889025 seconds (6.35 M allocations: 313.325 MiB, 0.80% gc time)
+</code></pre>
+
+<p>The execution times are nearly identical on my computer. The reason is
+that the computation is dominated by the creation of <code>X</code> and
+multiplying <code>X'*X</code> and <code>X'*y</code>. These operations are already
+multi-threaded in the BLAS version I have installed. It is possible
+first calling <code>using LinearAlgebra; BLAS.set_num_threads(1)</code> would
+improve the performance of the multi-threaded bootstrap. </p>
+<pre><code class="julia">println(&quot;Single thread, fastest version&quot;)
+</code></pre>
+
+<pre><code>Single thread, fastest version
+</code></pre>
+
+<pre><code class="julia">@btime  (b,t) = gridbootstrap(estimator(), a-&gt;a, αgrid, nboot);
+</code></pre>
+
+<pre><code>26.969 ms (111651 allocations: 4.80 MiB)
+</code></pre>
+
+<pre><code class="julia">
+println(&quot;$(nthreads()) threads, fastest version&quot;)
+</code></pre>
+
+<pre><code>30 threads, fastest version
+</code></pre>
+
+<pre><code class="julia">estimator_threaded(y0=y0,e=est.e)=function(foo)
+  (a, rng) = foo
+  out=simulate_estimate_arp(y0,a,e,Val(1),()-&gt;rand(rng,1:length(e)))
+  (out.θ[3], out.se[3])
+end
+rng = rngarray(nthreads())
+@btime begin
+  (bs, ts) = gridbootstrap_threaded(estimator_threaded(),
+                                    (a,rng)-&gt;(a,rng), αgrid,
+                                    nboot, rng=rng)  
+end;
+</code></pre>
+
+<pre><code>4.657 ms (22171 allocations: 1.21 MiB)
+</code></pre>
+
+<p>Notice how the speedup from using multiple threads is far less than
+number of cores. On my computer, the threaded version of the code is
+about 4 times faster, even though my computer has 40 &ldquo;cores&rdquo; (or 20
+physical cores. My computer has 2 processors with 10 cores each, and each
+core is hyperthreaded into 2. The OS sees 40 processors, but half of
+them are sharing substantial resources). A speedup far less than the
+number of cores is typical. Creating and managing multiple threads
+creates some overhead. Moreover, cores must share various resources;
+most notably RAM and some cache. </p>
+<h1 id="gpu">GPU<a class="headerlink" href="#gpu" title="Permanent link">&para;</a></h1>
+<p>Compared to CPUs, GPUs have a huge number of cores operating at a
+slower clockrate. GPUs also have their own separate memory, which they
+can access faster than CPUs access RAM.  These characteristics make
+GPUs well-suited to large parallel computations. Unfortunately, fully
+utilizing GPUs can require substantial changes to your code.</p>
+<p>See <a href="https://mitmath.github.io/18337/lecture6/styles_of_parallelism">&ldquo;The Different Flavors of
+Parallelism&rdquo;</a>
+Rackauckas (2019)[^3] for more information comparing
+GPUs to various forms of parallelism on CPUs.</p>
+<h2 id="array-interface">Array interface<a class="headerlink" href="#array-interface" title="Permanent link">&para;</a></h2>
+<p>The easiest way to use a GPU in Julia is through a high level array
+interface. <code>ArrayFire.jl</code>, <code>CLArrays.jl</code>, and <code>CuArrays.jl</code> each offer such
+interfaces. We will focus on <code>CuArrays.jl</code> in these
+notes. <code>CuArrays.jl</code> relies on Nvidia&rsquo;s CUDA platform, so it only
+works with Nvidia GPUs. Nvidia tends to dominate GPGPU, and the GPUs
+available on cedar.computecanada.ca and in my desktop are Nvidia. </p>
+<p>Using CuArrays is simple, but has some limitations. You create arrays
+on the GPU using <code>CuArray</code>. Any array level operation on these will
+then be performed efficiently on the GPU. This includes broadcast
+functions with <code>.</code> and matrix multiplies. </p>
+<pre><code class="julia">using CuArrays, Random, BenchmarkTools
+
+
+N = 1000
+M = 1000
+
+function cuarraydemo(N,M)
+  # wrapped in a  function so that the CuArrays are freed
+  # otherwise we will run out GPU memory later
+  A = randn(N,M);
+  b = randn(M,2);
+  println(&quot;Time on CPU&quot;)
+  function foo(A,b)
+    (A.^2)*b
+  end
+  @time c=foo(A,b);
+  @time c=foo(A,b);
+  A_gpu = CuArray(A); # copy of A in GPU memory
+  b_gpu = CuArray(b);
+  println(&quot;Computations on the GPU are fast&quot;)
+  # @btime does not work inside a function
+  @time CuArrays.@sync c_gpu=foo(A_gpu,b_gpu);
+  @time CuArrays.@sync c_gpu=foo(A_gpu,b_gpu);
+  println(&quot;But copying to and from GPU memory is not&quot;)
+  bar(A,b) =Array(foo(CuArray(A), CuArray(b))) 
+  @time c2=bar(A,b);
+  @time c2=bar(A,b);  
+end
+</code></pre>
+
+<pre><code>cuarraydemo (generic function with 1 method)
+</code></pre>
+
+<pre><code class="julia">julia&gt; cuarraydemo(N,M);
+Time on CPU
+  0.005378 seconds (3 allocations: 7.645 MiB)
+  0.005862 seconds (3 allocations: 7.645 MiB)
+Computations on the GPU are fast
+  8.738436 seconds (12.72 M allocations: 651.214 MiB, 4.31% gc time)
+  0.000628 seconds (76 allocations: 2.844 KiB)
+But copying to and from GPU memory is not
+  0.013393 seconds (98 allocations: 15.308 MiB)
+  0.011296 seconds (101 allocations: 15.310 MiB)
+
+</code></pre>
+
+<p><code>CuArrays</code> also allow indexing, so you could use loops and other
+constructs. However, this will not be fast. <code>CuArrays</code> by itself will be
+a good method to utilize GPUs when the code is dominated by operations
+on large arrays. </p>
+<p>Unfortunately, the fastest version of our grid bootstrap code does not
+fit that description. A loop seems needed to generate $y$ due to the
+recursiveness of the AR(1) model. The fastest version of the code
+above involves many operations on small 3x3 arrays.</p>
+<p>EXERCISE: modify <code>b_est_original</code> or <code>b_est_mldivide</code> to utilize
+<code>CuArrays</code>. The approach taken in those functions involves some
+moderate sized matrices, so it may benefit from <code>CuArrays</code>.</p>
+<h2 id="cudanative">CUDAnative<a class="headerlink" href="#cudanative" title="Permanent link">&para;</a></h2>
+<p>To parallelize the code above on a GPU, we will have to use a lower
+level interface to the GPU. We will the <code>CUDAnative.jl</code> package. To
+explain how it works, we will begin with a simple example that just
+squares all the elements of an array. </p>
+<p>Disclaimer: my understanding of CUDA and the inner workings of GPUs is
+far from complete. Some of the details in this section might be
+inaccurate. </p>
+<p>A typical workflow with CUDAnative consists of </p>
+<ol>
+<li>Allocate GPU memory and copying arrays into it with <code>CuArray</code>.</li>
+<li>Decide how many threads and what configuration of threads to
+   launch.</li>
+<li>Each thread does some computation by running a &ldquo;kernel&rdquo; function.</li>
+<li>Copy result from GPU memory to CPU memory.</li>
+</ol>
+<p>In the code below, 1 happens in <code>cuarray_cudanative_compare</code>, 2 happens in the
+<code>square!</code> function, <code>square_kernel!</code> is the kernel in 3, and 4 is just
+not done. </p>
+<h3 id="threads-and-blocks">Threads and blocks<a class="headerlink" href="#threads-and-blocks" title="Permanent link">&para;</a></h3>
+<p>CUDA organizes GPU threads into blocks. I believe that the threads in
+a block all execute concurrently. Threads in the same block share some
+memory and registers. All current Nvidia GPUs have a maximum number of
+threads per block of 1024. Note that threads in the same block share
+registers<sup id="fnref:reg"><a class="footnote-ref" href="#fn:reg">1</a></sup>, and different kernel functions will use different
+numbers of registers at once, so depending on the kernel function, you
+might be limited to fewer than 1024 threads per block. The number of registers
+available per block depends on your GPU. You can check your GPU
+characteristics by compiling and running the C++ program in 
+<code>$CUDA_PATH/samples/1_Utilities/deviceQuery/</code>. 
+Alternatively, you can access this information within Julia using
+<code>CUDAdrv.jl</code>.</p>
+<pre><code class="julia">using CUDAdrv
+println(&quot;Maximum threads per block $(attribute(device(), CUDAdrv.MAX_THREADS_PER_BLOCK))&quot;)
+</code></pre>
+
+<pre><code>Maximum threads per block 1024
+</code></pre>
+
+<pre><code class="julia">println(&quot;Maximum x blocks $(attribute(device(), CUDAdrv.MAX_GRID_DIM_X))&quot;)
+</code></pre>
+
+<pre><code>Maximum x blocks 2147483647
+</code></pre>
+
+<pre><code class="julia">println(&quot;Maximum registers per block $(attribute(device(), CUDAdrv.MAX_REGISTERS_PER_BLOCK))&quot;)
+</code></pre>
+
+<pre><code>Maximum registers per block 65536
+</code></pre>
+
+<p>As far as I can tell, there is no simple way to figure out how many
+registers a kernel function uses. It will depend both on the code you
+write and how the compiler optimizes the code. If you encounter
+cryptic error messages about CUDA resources unavailable, then try
+reducing the number of threads per block.</p>
+<p>You can execute more than 1024 threads by specifying a number of
+blocks. There is also a limit to the number of blocks, but it is
+rather large. In the code below, we set the number of blocks, so that
+<code>nblocks*nthreads &gt;= length(A)</code>. Each thread then operates on a single
+element of <code>A</code>. When the code is executed, each thread has a unique
+<code>threadIdx</code> and <code>blockIdx</code> combination, and these are used to assign
+threads to elements of <code>A</code>. The indices go from 1 to number of threads
+(or blocks). For convenience you can request threads and blocks to
+have up 3 dimensions, and there are <code>threadIdx().y</code> and
+<code>threadIdx().z</code> for the additional dimensions.</p>
+<pre><code class="julia">using CUDAnative
+
+function square!(A::CuArray)
+  n = length(A)
+  maxthreads = 1024
+  nthreads = min(maxthreads, n)
+  nblocks  = Int(ceil(n/nthreads))
+
+  @cuda threads=nthreads blocks=nblocks square_kernel!(A)
+
+  return A
+end
+
+function square_kernel!(A)
+  i = threadIdx().x + (blockIdx().x-1)*blockDim().x
+  if (i&lt;=length(A))
+    @inbounds A[i] *= A[i]
+  end
+  return nothing # CUDA kernels must return nothing
+end
+
+function cuarray_cudanative_compare(A)
+  A_gpu = CuArray(A);
+  println(&quot;CUDAnative square!&quot;)
+  @time CuArrays.@sync square!(A_gpu);
+  @time CuArrays.@sync square!(A_gpu);
+
+  println(&quot;CuArray A*=A&quot;)
+  A_gpu = CuArray(A);
+  @time CuArrays.@sync A_gpu .*= A_gpu;
+  @time CuArrays.@sync A_gpu .*= A_gpu;
+  return nothing
+end
+</code></pre>
+
+<pre><code>cuarray_cudanative_compare (generic function with 1 method)
+</code></pre>
+
+<pre><code class="julia">julia&gt; cuarray_cudanative_compare(randn(N,M))
+CUDAnative square!
+  0.118767 seconds (100.71 k allocations: 6.323 MiB)
+  0.000258 seconds (21 allocations: 592 bytes)
+CuArray A*=A
+  0.157229 seconds (214.06 k allocations: 10.758 MiB)
+  0.000255 seconds (53 allocations: 2.594 KiB)
+
+</code></pre>
+
+<h3 id="kernel-limitations">Kernel Limitations<a class="headerlink" href="#kernel-limitations" title="Permanent link">&para;</a></h3>
+<p>CUDA kernel functions execute on the GPU and in GPU memory. Since GPU
+memory is allocated and managed differently than RAM, many Julia
+functions will not work in CUDA kernels. Most importantly, Julia
+functions that allocate dynamically sized arrays will not work. This
+means that even matrix multiplication like <code>θ = ixx*xy</code> will fail (if
+<code>ixx</code> or <code>xy</code> are dynamically allocated) since it allocates an array
+for <code>θ</code>. You can, however, have local scalars, tuples, and <code>StaticArrays</code> within a kernel function. The key difference is that the
+sizes of these types are known at compile time. If <code>ixx</code> and <code>xy</code> are
+<code>StaticArrays</code>, then you can do something like <code>θ = ixx*xy</code>. Since the
+compiler knows the size of <code>ixx</code> and <code>xy</code>, the compiler also know the
+size of <code>θ</code>. However, even with <code>StaticArrays</code> you must be careful
+with operations that that create new StaticArrays (like matrix
+multiplies). These will cause problems if called repeatedly within a
+loop.<sup id="fnref:loops"><a class="footnote-ref" href="#fn:loops">2</a></sup></p>
+<p>It is possible to dynamicaaly allocate GPU memory within a kernel
+function, but it requires using the low-level interface to CUDA in 
+<code>CUDAnative.jl</code> and/or <code>CUDAdrv.jl</code>. Moreoever, it is generally not a
+good idea to be dynamically allocating and freeing memory in each of
+the thousands of threads you execute.<sup id="fnref:caveat"><a class="footnote-ref" href="#fn:caveat">3</a></sup></p>
+<h2 id="gpu-grid-bootstrap">GPU grid bootstrap<a class="headerlink" href="#gpu-grid-bootstrap" title="Permanent link">&para;</a></h2>
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/gridbootstrap.jl&quot;: No such file or directory
+</code></pre>
+
+<pre><code class="julia">Error: SystemError: opening file &quot;/home/paul/.julia/dev/ARGridBootstrap/docs/build/../src/gridbootstrap.jl&quot;: No such file or directory
+</code></pre>
+
+<pre><code class="julia">@btime begin
+  grid = argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64);
+end;
+</code></pre>
+
+<pre><code>1.080 ms (289 allocations: 892.50 KiB)
+</code></pre>
+
+<p>Compared to the fastest CPU code above, the GPU version takes about
+1/20th the time of the single-threaded CPU code, and about 1/5th the
+time of the 30-threaded CPU code. Considering that the two CPUs in my
+workstation together cost about 6 times more than the single GPU, the
+performance of the GPU code is quite good. Also, we carefully profiled
+and tuned the CPU code, but not the GPU code (although the GPU code
+does use all algorithmic improvements of the fastest CPU code). Profiling GPU kernel
+code requires using Nvidia&rsquo;s profiler, see
+<a href="https://juliagpu.github.io/CUDAnative.jl/stable/man/performance.html">CUDAnative
+documentation</a>
+for information.</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:reg">
+<p>Processor registers are the fastest bits of memory on the
+processor, and registers are where the actual addition,
+multiplication, and other instructions are carried out.&#160;<a class="footnote-backref" href="#fnref:reg" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:loops">
+<p>If you create StaticArrays inside a loop, they get allocated
+to the GPU&rsquo;s &ldquo;dynamic shared memory.&rdquo; I believe a new allocation
+happens each loop iteration. This will be slow, and there is a
+fairly small amount of dynamic shared memory, of which you will
+soon run out.&#160;<a class="footnote-backref" href="#fnref:loops" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:caveat">
+<p>There are situations where allocating shared memory is a
+needed and a good idea, but these require some advanced techniques
+that we will not cover.&#160;<a class="footnote-backref" href="#fnref:caveat" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div></div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+                <p>Paul Schrimpf</p>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML" defer></script>
+        <script src="../assets/mathjaxhelper.js" defer></script>
+
+        <div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="Keyboard Shortcuts Modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">Keyboard Shortcuts</h4>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
