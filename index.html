@@ -216,7 +216,7 @@
 <li><code>θ</code> estimated coefficients</li>
 <li><code>se</code> standard errors</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/ar.jl#LL125-L148' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/ar.jl#LL126-L149' class='documenter-source'>source</a><br></p>
 <p><a id='Grid-Bootstrap-1'></a></p>
 <h3 id="grid-bootstrap">Grid Bootstrap<a class="headerlink" href="#grid-bootstrap" title="Permanent link">&para;</a></h3>
 <p><a id='ARGridBootstrap.argridbootstrap_gpu-Tuple{Any,Any}' href='#ARGridBootstrap.argridbootstrap_gpu-Tuple{Any,Any}'>#</a>
@@ -239,7 +239,7 @@
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat  for each grid value and simulated dataset</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL102-L122' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL108-L128' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.gridbootstrap' href='#ARGridBootstrap.gridbootstrap'>#</a>
 <strong><code>ARGridBootstrap.gridbootstrap</code></strong> &mdash; <em>Function</em>.</p>
 <pre><code class="julia">gridbootstrap(estimator, simulator, 
@@ -266,10 +266,11 @@
 <strong><code>ARGridBootstrap.gridbootstrap_threaded</code></strong> &mdash; <em>Function</em>.</p>
 <pre><code class="julia">gridbootstrap_threaded(estimator, simulator, 
                 grid::AbstractVector, 
-                nboot=199)
+                nboot=199, rng=rngarray(nthreads())
 </code></pre>
 
 <p>Computes grid bootstrap estimates a single parameter model. </p>
+<p>Multithreaded version.</p>
 <p>For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. </p>
 <p><strong>Arguments</strong></p>
 <ul>
@@ -277,13 +278,14 @@
 <li><code>simulator</code> function that given <code>α</code> and <code>rng</code>, simulates data   that can be used to estimate α</li>
 <li><code>grid</code> grid of parameter values. For each value, <code>nboot</code>   datasets will be simulated and estimates computed.</li>
 <li><code>nboot</code></li>
+<li><code>rng</code> array of RNG states of length = number of threads</li>
 </ul>
 <p><strong>Returns</strong></p>
 <ul>
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat  for each grid value and simulated dataset</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL41-L63' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL41-L66' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.rngarray-Tuple{Any}' href='#ARGridBootstrap.rngarray-Tuple{Any}'>#</a>
 <strong><code>ARGridBootstrap.rngarray</code></strong> &mdash; <em>Method</em>.</p>
 <pre><code class="julia">rngarray(n)
@@ -291,7 +293,7 @@
 
 <p>Create <code>n</code> rng states that will not overlap for 10^20 steps.</p>
 <p>Note: this will be unneeded in Julia 1.3 when thread-safe RNG is   included.</p>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL81-L88' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL87-L94' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any,Any,Any,Val{P},Any,Any,Any}} where P' href='#ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any,Any,Any,Val{P},Any,Any,Any}} where P'>#</a>
 <strong><code>ARGridBootstrap.argridkernel!</code></strong> &mdash; <em>Method</em>.</p>
 <pre><code class="julia">argridkernel!(ba,bootq, bootse, ar::Val{P}, e, ei, αgrid)
@@ -312,7 +314,7 @@
 <li><code>αgrid</code> : length <code>ngrid</code> values of AR(1) parameter to perform  bootstrap on.</li>
 </ul>
 <p>Returns nothing, but modifies in place <code>ba</code>, <code>bootq</code>, and <code>bootse</code></p>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL150-L177' class='documenter-source'>source</a><br></p></div>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL156-L183' class='documenter-source'>source</a><br></p></div>
         </div>
 
         <footer class="col-md-12">
@@ -374,5 +376,5 @@
 
 <!--
 MkDocs version : 1.0.4
-Build Date UTC : 2019-10-29 22:30:10
+Build Date UTC : 2019-11-07 20:24:59
 -->
