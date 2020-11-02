@@ -96,10 +96,10 @@ end
   end
   (bx, tx) = gridbootstrap_threaded(estimator,
                                     (a, rng)->ar1_original(y0, a, e, n->rand(rng,1:(T-1),n)),
-                                    grid, 19, rng=deepcopy(rng))  
+                                    grid, 19, rng=deepcopy(rng))
   estimator(foo)=begin
     (a, rng) = foo
-    out=simulate_estimate_arp(y0,a,e,Val(1),n->rand(rng,1:(T-1),n))
+    out=simulate_estimate_arp(y0,a,e,Val(1),()->rand(rng,1:(T-1)))
     (out.θ[3], out.se[3])
   end
   (bs, ts) = gridbootstrap_threaded(estimator, (a,rng)->(a,rng), grid,

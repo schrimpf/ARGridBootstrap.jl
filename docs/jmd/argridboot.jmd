@@ -3,7 +3,7 @@ title       : "Coding for Performance"
 subtitle    : 
 author      : Paul Schrimpf
 date        : `j using Dates; print(Dates.today())`
-bibliography: `j print(joinpath(@__DIR__, "perf.bib"))`
+bibliography: "perf.bib"
 ---
 
 [![](https://i.creativecommons.org/l/by-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-sa/4.0/)
@@ -16,11 +16,11 @@ License](http://creativecommons.org/licenses/by-sa/4.0/)
 ### About this document {-}
 
 This document was created using Weave.jl. The code is available in
-[on github](FIXME). The same
-document generates both static webpages and associated jupyter
-notebooks. 
+[on github](https://github.com/schrimpf/ARGridBootstrap.jl). The same
+document generates both static webpages and associated (jupyter
+notebook)[argridboot.ipynb]. 
 
-# Introudction
+# Introduction
 
 Today we will look into some methods to improve the speed of our
 code. Although speed is sometimes important, never forget that speed
@@ -28,14 +28,23 @@ should be low on your list of priorities when writing code. You should
 prioritize correctness and maintainability ahead of
 performance. Nonetheless, performance does matter for some problems. 
 
+If you have not already, be sure to read [the Peformance Tips section of Julia Docs](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-tips-1). 
+
+Also, read Rackauckas's notes on ["Optimizing Serial Code."](https://mitmath.github.io/18337/lecture2/optimizing)[@rackauckas2019a]. 
+
 # Grid bootstrap
 
 As a motivating example we will look at the gridded bootstrap of
-@hansen99. FIXME: DESCRIPTION. Gauss, Matlab, and R code implementing
-Hansen's method is available on [his website](https://www.ssc.wisc.edu/~bhansen/progs/restat_99.html). The Julia
-code below is more or less a direct translation from Hansen's R
+Hansen (1999)[@hansen99]. 
+
+<!-- FIXME: DESCRIPTION.  -->
+
+Gauss, Matlab, and R code implementing Hansen's method is available on
+[Hansen's
+website](https://www.ssc.wisc.edu/~bhansen/progs/restat_99.html). The
+Julia code below is more or less a direct translation from Hansen's R
 code. Since this is a translation from R of a translation from Gauss,
-this code will not necessarily follow best practices for Julia. 
+this code will not necessarily follow best practices for Julia.
 
 ```julia; echo=false; results="hidden"
 using ARGridBootstrap
@@ -53,12 +62,12 @@ end
 ```
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("b_est_original",joinpath(@__DIR__, "../src/ar.jl")));
-println.(functiontext("ar1_original",joinpath(@__DIR__, "../src/ar.jl")));
+println.(functiontext("b_est_original",joinpath(dirname(Base.pathof(ARGridBootstrap)), "ar.jl")));
+println.(functiontext("ar1_original",joinpath(dirname(Base.pathof(ARGridBootstrap)),"ar.jl")));
 ```
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("gridbootstrap",joinpath(@__DIR__, "../src/gridbootstrap.jl")));
+println.(functiontext("gridbootstrap",joinpath(dirname(Base.pathof(ARGridBootstrap)), "gridbootstrap.jl")));
 ```
 
 ## Improving performance
@@ -108,7 +117,7 @@ code to be faster, we should focus on these lines.  Calling both `inv`
 and `\` is redundant; we should combine these computations.
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("b_est_mldivide",joinpath(@__DIR__, "../src/ar.jl")));
+println.(functiontext("b_est_mldivide",joinpath(dirname(Base.pathof(ARGridBootstrap)), "ar.jl")));
 ```
 
 ```julia; term=true; cache=true
@@ -133,7 +142,7 @@ creation of ` x` involves both. We can avoid creating `x` by just
 accumulating $X'y$ and $X'X$ in a loop. 
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("b_est_nox",joinpath(@__DIR__, "../src/ar.jl")));
+println.(functiontext("b_est_nox",joinpath(dirname(Base.pathof(ARGridBootstrap)), "ar.jl")));
 ```
 
 ```julia; cache=true
@@ -179,7 +188,7 @@ using StaticArrays
 ```
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("simulate_estimate_arp",joinpath(@__DIR__, "../src/ar.jl")));
+println.(functiontext("simulate_estimate_arp",joinpath(dirname(Base.pathof(ARGridBootstrap)), "ar.jl")));
 ```
 
 ```julia; cache=true
@@ -189,6 +198,7 @@ estimator(y0=y0,e=est.e) = function(a)
 end
 @btime  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
 ```
+
 On my computer, this version of the code is about 15 times faster than
 the original. 
 
@@ -206,26 +216,29 @@ multi-threaded. If you code is dominated by large matrix operations,
 it may already be using all available cores. In that case, there will
 not be much benefit from additional multi-threading.
 
+Read ["The Basics of Single Node Parallel Computing"](https://mitmath.github.io/18337/lecture5/parallelism_overview)
+Rackauckus (2019)[@rackauckus2019b].
+
 Once we have decided that the code might benefit from multi-threading,
-we should look for loops that can be multi-threaded. There is some
-small overhead from creating threads and communicating among
-them. Multi-threading generally works best for loops where each
-iteration involves substantial work, and each iteration is independent
-of all others. The loops over grid points and bootstrap repetitions in
-` gridbootstrap` are perfect candidates. We don't care about the order
-in which these loops get executed. The result of each iteration is
-(mostly) independent of all others. 
+we should look for loops (or other independent tasks) that can be
+multi-threaded. There is some overhead from creating threads and
+communicating among them. Multi-threading generally works best for
+loops where each iteration involves substantial work, and each
+iteration is independent of all others. The loops over grid points and
+bootstrap repetitions in ` gridbootstrap` are perfect candidates. We
+don't care about the order in which these loops get executed. The
+result of each iteration is (mostly) independent of all others.
 
 Some care must be taken with random number generators and
 multi-threaded code. See
 [the Julia docs](https://docs.julialang.org/en/v1/manual/parallel-computing/index.html#Side-effects-and-mutable-function-arguments-1) for more information. 
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("gridbootstrap_threaded",joinpath(@__DIR__, "../src/gridbootstrap.jl")));
+println.(functiontext("gridbootstrap_threaded",joinpath(dirname(Base.pathof(ARGridBootstrap)), "gridbootstrap.jl")));
 ```
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("rngarray",joinpath(@__DIR__, "../src/gridbootstrap.jl")));
+println.(functiontext("rngarray",joinpath(dirname(Base.pathof(ARGridBootstrap)), "gridbootstrap.jl")));
 ```
 
 Now, let's try multi-threading the original version of the code. 
@@ -290,11 +303,15 @@ most notably RAM and some cache.
 # GPU
 
 Compared to CPUs, GPUs have a huge number of cores operating at a
-somewhat slower clockrate. GPUs also have their own separate memory,
-which they can access faster than CPUs access RAM.  These
-characteristics make GPUs well-suited to large parallel
-computations. Unfortunately, fully utilizing GPUs can require
-substantial changes to your code.
+slower clockrate. GPUs also have their own separate memory, which they
+can access faster than CPUs access RAM.  These characteristics make
+GPUs well-suited to large parallel computations. Unfortunately, fully
+utilizing GPUs can require substantial changes to your code.
+
+See ["The Different Flavors of
+Parallelism"](https://mitmath.github.io/18337/lecture6/styles_of_parallelism)
+Rackauckas (2019)[@rackauckas2019c] for more information comparing
+GPUs to various forms of parallelism on CPUs.
 
 ## Array interface
 
@@ -503,11 +520,11 @@ the thousands of threads you execute.[^caveat]
 ## GPU grid bootstrap
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("argridbootstrap_gpu",joinpath(@__DIR__, "../src/gridbootstrap.jl")));
+println.(functiontext("argridbootstrap_gpu",joinpath(dirname(Base.pathof(ARGridBootstrap)), "gridbootstrap.jl")));
 ```
 
 ```julia; output_as_code=true; output_eval=false
-println.(functiontext("argridkernel!",joinpath(@__DIR__, "../src/gridbootstrap.jl")));
+println.(functiontext("argridkernel!",joinpath(dirname(Base.pathof(ARGridBootstrap)), "gridbootstrap.jl")));
 ```
 
 ```julia; cache=true

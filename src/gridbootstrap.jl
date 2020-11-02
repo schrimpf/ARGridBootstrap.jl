@@ -41,9 +41,11 @@ end
 """
     gridbootstrap_threaded(estimator, simulator, 
                     grid::AbstractVector, 
-                    nboot=199)
+                    nboot=199, rng=rngarray(nthreads())
     
 Computes grid bootstrap estimates a single parameter model. 
+
+Multithreaded version.
 
 For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. 
  
@@ -56,6 +58,7 @@ For each α ∈ grid, repeatedly simulate data with parameter α and then comput
 - `grid` grid of parameter values. For each value, `nboot`
     datasets will be simulated and estimates computed.  
 - `nboot` 
+- `rng` array of RNG states of length = number of threads
 
 # Returns
 - `ba` hatα - α for each grid value and simulated dataset
@@ -68,15 +71,18 @@ function gridbootstrap_threaded(estimator, simulator,
   bootq = zeros(nboot, g)
   ba    = zeros(nboot, g)
   bootse = zeros(nboot,g)
-  @threads for ak in 1:g
-    for j in 1:nboot 
-      (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak],rng[threadid()]))
-      ba[j,ak] = bootq[j,ak] - grid[ak]
-    end
+  #@threads for ak in 1:g
+  #  for j in 1:nboot
+  @threads for idx ∈ CartesianIndices(ba)
+    j =  idx[1]
+    ak = idx[2]
+    (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak],rng[threadid()]))
+    ba[j,ak] = bootq[j,ak] - grid[ak]
   end
   ts = ba./bootse
   (ba=ba, t=ts)
 end
+
 
 """
     rngarray(n)

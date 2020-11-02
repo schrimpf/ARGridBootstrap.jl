@@ -96,24 +96,25 @@ end
 """
 function b_est_nox(yin)
   T = length(yin)
-  xx = zeros(eltype(yin),3,3)
-  xy = zeros(eltype(yin),3)
+  xx = @MMatrix zeros(eltype(yin),3,3)
+  xy = @MVector zeros(eltype(yin),3)
   @inbounds @simd for t in 2:T
     xx[1,3] += yin[t-1]
-    xx[2,3] += t*yin[t-1]
+    #xx[2,3] += t*yin[t-1]
+    xx[2,3] = muladd(t,yin[t-1], xx[2,3])
     xx[3,3] += yin[t-1]^2
     xy[1] += yin[t]
-    xy[2] += t*yin[t]
-    xy[3] += yin[t-1]*yin[t]
+    #xy[2] += t*yin[t]
+    xy[2] = muladd(t, yin[t], xy[2])
+    xy[3] = muladd(yin[t-1],yin[t], xy[3])
   end 
   xx[1,1] = T-1 # = 1'*1
   xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(p+1:T)
   xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)  
   xx[3,1] = xx[1,3]
   xx[3,2] = xx[2,3]
-  tmp = xx \ [xy I]
-  θ = tmp[:,1]
-  ixx = tmp[:,2:4]
+  ixx = inv(xx)
+  θ = ixx * xy
   e = similar(yin,T-1)
   @simd for t in 2:T
     @inbounds e[t-1] = yin[t] - θ[1] - θ[2]*t - θ[3]*yin[t-1]
