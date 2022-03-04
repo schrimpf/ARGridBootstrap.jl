@@ -212,49 +212,163 @@ end
 with only 50 grid points and 199 bootstrap replications. In real use,
 you would want more like 999 bootstrap replications or more, and perhaps more
 grid points.</p>
-<pre><code class="language-julia">julia&gt; Profile.clear();
-Error: UndefVarError: Profile not defined
+<pre><code class="language-julia"># simulate some data
+using Random, BenchmarkTools, Profile
+T = 200
+e = randn(T)
+y0 = 0
+a = 0.9
+y = ar1_original(y0, a, e)
+est = b_est_original(y)
+αgrid = 0.84:(0.22/50):1.06
+nboot= 199
+wrapper(b_est) = function(x)
+  out=b_est(x)
+  (out.θ[3], out.se[3])
+end
+@btime (b,t) = gridbootstrap(wrapper(b_est_original), a-&gt;ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+</code></pre>
+<pre><code>204.240 ms (355224 allocations: 219.75 MiB)
+</code></pre>
+<p>To make code faster, we should begin by profiling.</p>
+<pre><code class="language-julia">julia&gt; using Profile
+
+julia&gt; Profile.clear();
 
 julia&gt; Profile.init(n=10^7,delay=0.0001);
-Error: UndefVarError: Profile not defined
 
 julia&gt; @profile (b,t) = gridbootstrap(wrapper(b_est_original), a-&gt;ar1_original(y0, a, est.e),
                                       αgrid, 999);
-Error: LoadError: UndefVarError: @profile not defined
-in expression starting at /home/paul/.julia/dev/ARGridBootstrap/docs/jmd/argridboot.jmd:1
 
 julia&gt; Profile.print(noisefloor=2.0)
-Error: UndefVarError: Profile not defined
-</code></pre>
-<p>To make code faster, we should begin by profiling.</p>
-<pre><code class="language-julia">println.(functiontext(&quot;b_est_mldivide&quot;,joinpath(dirname(Base.pathof(ARGridBootstrap)), &quot;ar.jl&quot;)));
-</code></pre>
-<pre><code>&quot;&quot;&quot;
-    b_est_mldivide(y)
-
-  Estimate AR(1) model with intercept and time trend. 
-
-    y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
-
-# Arguments    
-- `y`: vector 
-
-# Returns
-- `θ`: estimated coefficients
-- `se`: standard errors
-- `e`: residuals 
-&quot;&quot;&quot;
-function b_est_mldivide(yin)
-  T = length(yin)
-  x = [ones(T-1) 2:T yin[1:(T-1)]]
-  y = yin[2:T]
-  tmp = x'*x \ [x'*y I]
-  θ = tmp[:,1]
-  ixx = tmp[:,2:4]
-  e = y - x*θ
-  se = sqrt.(diag(ixx *(e'*e))./(T-4))
-  (θ=θ,se=se,e=e)
-end
+Overhead ╎ [+additional indent] Count File:Line; Function
+=========================================================
+     ╎627   @Base/client.jl:495; _start()
+     ╎ 627   @Base/client.jl:309; exec_options(opts::Base.JLOpt...
+     ╎  627   @Base/client.jl:379; run_main_repl(interactive::B...
+     ╎   627   @Base/essentials.jl:714; invokelatest
+     ╎    627   @Base/essentials.jl:716; #invokelatest#2
+     ╎     627   @Base/client.jl:394; (::Base.var&quot;#930#932&quot;{Bool,...
+     ╎    ╎ 627   ...REPL/src/REPL.jl:351; run_repl(repl::REPL.Abstra...
+     ╎    ╎  627   ...REPL/src/REPL.jl:364; run_repl(repl::REPL.Abstr...
+     ╎    ╎   627   ...EPL/src/REPL.jl:231; start_repl_backend(backen...
+     ╎    ╎    627   ...EPL/src/REPL.jl:246; repl_backend_loop(backen...
+     ╎    ╎     627   ...EPL/src/REPL.jl:150; eval_user_input(ast::Any...
+     ╎    ╎    ╎ 627   @Base/boot.jl:373; eval
+     ╎    ╎    ╎  627   @Base/client.jl:451; include(fname::String)
+     ╎    ╎    ╎   627   @Base/loading.jl:1253; _include(mapexpr::Fun...
+     ╎    ╎    ╎    627   @Base/loading.jl:1196; include_string(mapexp...
+     ╎    ╎    ╎     627   @Base/boot.jl:373; eval
+     ╎    ╎    ╎    ╎ 627   ...src/Weave.jl:142; (::Weave.var&quot;#weave#...
+     ╎    ╎    ╎    ╎  627   ...src/Weave.jl:176; weave(source::Strin...
+     ╎    ╎    ╎    ╎   627   ...e/src/run.jl:19; (::Weave.var&quot;#run_d...
+     ╎    ╎    ╎    ╎    627   .../src/run.jl:74; run_doc(doc::Weave....
+     ╎    ╎    ╎    ╎     627   .../src/run.jl:133; run_chunk(chunk::W...
+     ╎    ╎    ╎    ╎    ╎ 627   ...src/run.jl:263; eval_chunk(doc::W...
+     ╎    ╎    ╎    ╎    ╎  627   ...src/run.jl:192; run_code(doc::We...
+     ╎    ╎    ╎    ╎    ╎   627   ...adcast.jl:860; materialize(bc::...
+     ╎    ╎    ╎    ╎    ╎    627   ...adcast.jl:885; copy
+     ╎    ╎    ╎    ╎    ╎     627   ...adcast.jl:913; copyto!
+     ╎    ╎    ╎    ╎    ╎    ╎ 627   ...adcast.jl:960; copyto!
+     ╎    ╎    ╎    ╎    ╎    ╎  627   ...mdloop.jl:77; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎   627   ...adcast.jl:961; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    627   ...adcast.jl:597; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎     627   ...adcast.jl:643; _broadcast_geti...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎ 627   ...adcast.jl:670; _broadcast_geti...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎  627   ...rc/run.jl:191; #29
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎   627   ...rc/run.jl:216; capture_output(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    627   ...e/task.jl:281; task_local_stor...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎     627   ...rc/run.jl:218; (::Weave.var&quot;#3...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ 627   ...oading.jl:1206; include_string
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  627   ...oading.jl:1196; include_string(...
+   34╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎   627   ...e/boot.jl:373; eval
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎    581   ...tstrap.jl:32; gridbootstrap(e...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎     423   ...dboot.jmd:13; (::var&quot;#95#96&quot;{...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 173   ...src/ar.jl:46; b_est_original(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 131   ...tarray.jl:1559; hcat
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 131   ...tarray.jl:1557; typed_hcat
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 34    ...tarray.jl:1576; _typed_hcat(#un...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 34    ...tarray.jl:785; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 34    .../array.jl:378; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 34    ...e/boot.jl:467; Array
+   34╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 34    ...e/boot.jl:459; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 56    ...tarray.jl:1587; _typed_hcat(#un...
+   56╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 56    .../tuple.jl:29; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 83    ...src/ar.jl:48; b_est_original(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 24    ...eneric.jl:1142; \(A::Matrix{Flo...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 16    ...src/lu.jl:278; lu
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 16    ...src/lu.jl:278; lu
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 16    ...src/lu.jl:279; #lu#153
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 9     ...src/lu.jl:81; lu!##kw
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 9     ...src/lu.jl:81; #lu!#146
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 49    ...matmul.jl:153; *
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 19    .../array.jl:378; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 19    ...e/boot.jl:467; Array
+   19╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 19    ...e/boot.jl:459; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 30    ...matmul.jl:275; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 30    ...matmul.jl:444; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 30    ...matmul.jl:375; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 30    ...matmul.jl:582; syrk_wrapper!(C...
+   30╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 30    ...c/blas.jl:1646; syrk!(uplo::Cha...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 107   ...src/ar.jl:50; b_est_original(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 54    .../dense.jl:876; inv(A::Matrix{F...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 24    ...src/lu.jl:485; inv!
+   15╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 15    ...lapack.jl:1051; getri!(A::Matri...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 30    ...src/lu.jl:278; lu
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 30    ...src/lu.jl:278; lu
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 30    ...src/lu.jl:279; #lu#153
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 27    ...src/lu.jl:81; lu!##kw
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 27    ...src/lu.jl:81; #lu!#146
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 17    ...lapack.jl:573; getrf!(A::Matri...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 17    ...tarray.jl:785; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 17    .../array.jl:378; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +11 17    ...e/boot.jl:466; Array
+   17╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +12 17    ...e/boot.jl:457; Array
+   10╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 10    ...lapack.jl:575; getrf!(A::Matri...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 38    ...matmul.jl:153; *
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 31    ...matmul.jl:275; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 31    ...matmul.jl:444; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 31    ...matmul.jl:375; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 31    ...matmul.jl:582; syrk_wrapper!(C...
+   31╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 31    ...c/blas.jl:1646; syrk!(uplo::Cha...
+    2╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎     129   ...dboot.jmd:1; (::var&quot;#99#100&quot;...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 125   ...src/ar.jl:18; ar1_original(y0...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 96    ...src/ar.jl:21; ar1_original(y0...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 26    ...tarray.jl:1218; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 24    ...sional.jl:839; _getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 16    ...sional.jl:853; _unsafe_getinde...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 16    ...sional.jl:862; _unsafe_getindex!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 9     ...tesian.jl:64; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 7     ...sional.jl:867; macro expansion
+    6╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 6     .../array.jl:903; setindex!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 70    ...src/ar.jl:17; #1
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 70    ...Random.jl:284; rand
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 70    ...Random.jl:281; rand
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 70    ...Random.jl:280; rand(r::TaskLoc...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 19    ...e/boot.jl:474; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 19    ...e/boot.jl:466; Array
+   19╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 19    ...e/boot.jl:457; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 51    ...Random.jl:267; rand!
+    5╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 51    ...Random.jl:272; rand!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 23    ...ration.jl:332; rand(rng::TaskL...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 23    ...Random.jl:257; rand
+    4╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 24    ...src/ar.jl:23; ar1_original(y0...
+   10╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 10    .../array.jl:861; getindex
+     ╎21293 @Base/task.jl:544; task_done_hook(t::Task)
+     ╎ 21293 @Base/task.jl:836; wait()
+21292╎  21293 @Base/task.jl:827; poptask(W::Base.InvasiveLink...
+     ╎760   ...adingconstructs.jl:178; (::CUDA.var&quot;#197#199&quot;)()
+     ╎ 760   @CUDA/src/pool.jl:130; pool_cleanup()
+     ╎  760   @Base/asyncevent.jl:221; sleep(sec::Int64)
+     ╎   760   @Base/asyncevent.jl:136; wait
+     ╎    760   @Base/asyncevent.jl:118; _trywait(t::Timer)
+     ╎     760   @Base/condition.jl:123; wait(c::Base.GenericConditi...
+     ╎    ╎ 760   @Base/task.jl:836; wait()
+  760╎    ╎  760   @Base/task.jl:827; poptask(W::Base.InvasiveL...
+    1╎1     ...bra/src/generic.jl:1339; istril(A::Matrix{Float64}, k:...
+   11╎11    .../src/generation.jl:330; rand(rng::TaskLocalRNG, sp::R...
+Total snapshots: 45629
 </code></pre>
 <p>Profile.jl works very simply. Every 0.0001 seconds, the line of code
 being executed gets recorded. <code>Profile.print</code> shows the count of how
@@ -280,63 +394,181 @@ code_md(s)
   (θ=θ,se=se,e=e)
 end
 </code></pre>
+<pre><code class="language-julia">julia&gt; @btime (b,t) = gridbootstrap(wrapper(b_est_mldivide), a-&gt;ar1_original(y0, a, est.e),
+                                    αgrid, nboot);
+  185.338 ms (375522 allocations: 206.28 MiB)
+</code></pre>
+<p>From this, we get a speedup by about a factor of 4 on my computer.</p>
 <pre><code class="language-julia">julia&gt; Profile.clear();
-Error: UndefVarError: Profile not defined
 
 julia&gt; @profile (b,t) = gridbootstrap(wrapper(b_est_mldivide), a-&gt;ar1_original(y0, a, est.e),
                                       αgrid, 999);
-Error: LoadError: UndefVarError: @profile not defined
-in expression starting at /home/paul/.julia/dev/ARGridBootstrap/docs/jmd/argridboot.jmd:1
 
 julia&gt; Profile.print(noisefloor=2.0)
-Error: UndefVarError: Profile not defined
-</code></pre>
-<p>From this, we get a speedup by about a factor of 4 on my computer.</p>
-<pre><code class="language-julia">println.(functiontext(&quot;b_est_nox&quot;,joinpath(dirname(Base.pathof(ARGridBootstrap)), &quot;ar.jl&quot;)));
-</code></pre>
-<pre><code>&quot;&quot;&quot; 
-    b_est_nox(y)
-
-  Estimate AR(1) model with intercept and time trend. 
-
-    y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
-
-# Arguments
-- `y`: vector 
-
-# Returns
-- `θ`: estimated coefficients
-- `se`: standard errors
-- `e`: residualas 
-&quot;&quot;&quot;
-function b_est_nox(yin)
-  T = length(yin)
-  xx = @MMatrix zeros(eltype(yin),3,3)
-  xy = @MVector zeros(eltype(yin),3)
-  @inbounds @simd for t in 2:T
-    xx[1,3] += yin[t-1]
-    #xx[2,3] += t*yin[t-1]
-    xx[2,3] = muladd(t,yin[t-1], xx[2,3])
-    xx[3,3] += yin[t-1]^2
-    xy[1] += yin[t]
-    #xy[2] += t*yin[t]
-    xy[2] = muladd(t, yin[t], xy[2])
-    xy[3] = muladd(yin[t-1],yin[t], xy[3])
-  end 
-  xx[1,1] = T-1 # = 1'*1
-  xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(p+1:T)
-  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)  
-  xx[3,1] = xx[1,3]
-  xx[3,2] = xx[2,3]
-  ixx = inv(xx)
-  θ = ixx * xy
-  e = similar(yin,T-1)
-  @simd for t in 2:T
-    @inbounds e[t-1] = yin[t] - θ[1] - θ[2]*t - θ[3]*yin[t-1]
-  end
-  se = sqrt.(diag(ixx *(e'*e))./(T-4))
-  (θ=θ,se=se,e=e)
-end
+Overhead ╎ [+additional indent] Count File:Line; Function
+=========================================================
+    1╎1     @Base/array.jl:247; _unsafe_copyto!(dest::Matrix{F...
+     ╎902   @Base/client.jl:495; _start()
+     ╎ 902   @Base/client.jl:309; exec_options(opts::Base.JLOpt...
+     ╎  902   @Base/client.jl:379; run_main_repl(interactive::B...
+     ╎   902   @Base/essentials.jl:714; invokelatest
+     ╎    902   @Base/essentials.jl:716; #invokelatest#2
+     ╎     902   @Base/client.jl:394; (::Base.var&quot;#930#932&quot;{Bool,...
+     ╎    ╎ 902   ...REPL/src/REPL.jl:351; run_repl(repl::REPL.Abstra...
+     ╎    ╎  902   ...REPL/src/REPL.jl:364; run_repl(repl::REPL.Abstr...
+     ╎    ╎   902   ...EPL/src/REPL.jl:231; start_repl_backend(backen...
+     ╎    ╎    902   ...EPL/src/REPL.jl:246; repl_backend_loop(backen...
+     ╎    ╎     902   ...EPL/src/REPL.jl:150; eval_user_input(ast::Any...
+     ╎    ╎    ╎ 902   @Base/boot.jl:373; eval
+     ╎    ╎    ╎  902   @Base/client.jl:451; include(fname::String)
+     ╎    ╎    ╎   902   @Base/loading.jl:1253; _include(mapexpr::Fun...
+     ╎    ╎    ╎    902   @Base/loading.jl:1196; include_string(mapexp...
+     ╎    ╎    ╎     902   @Base/boot.jl:373; eval
+     ╎    ╎    ╎    ╎ 902   ...src/Weave.jl:142; (::Weave.var&quot;#weave#...
+     ╎    ╎    ╎    ╎  902   ...src/Weave.jl:176; weave(source::Strin...
+     ╎    ╎    ╎    ╎   902   ...e/src/run.jl:19; (::Weave.var&quot;#run_d...
+     ╎    ╎    ╎    ╎    902   .../src/run.jl:74; run_doc(doc::Weave....
+     ╎    ╎    ╎    ╎     902   .../src/run.jl:133; run_chunk(chunk::W...
+     ╎    ╎    ╎    ╎    ╎ 902   ...src/run.jl:263; eval_chunk(doc::W...
+     ╎    ╎    ╎    ╎    ╎  902   ...src/run.jl:192; run_code(doc::We...
+     ╎    ╎    ╎    ╎    ╎   902   ...adcast.jl:860; materialize(bc::...
+     ╎    ╎    ╎    ╎    ╎    902   ...adcast.jl:885; copy
+     ╎    ╎    ╎    ╎    ╎     902   ...adcast.jl:913; copyto!
+     ╎    ╎    ╎    ╎    ╎    ╎ 902   ...adcast.jl:960; copyto!
+     ╎    ╎    ╎    ╎    ╎    ╎  902   ...mdloop.jl:77; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎   902   ...adcast.jl:961; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    902   ...adcast.jl:597; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎     902   ...adcast.jl:643; _broadcast_geti...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎ 902   ...adcast.jl:670; _broadcast_geti...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎  902   ...rc/run.jl:191; #29
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎   902   ...rc/run.jl:216; capture_output(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    902   ...e/task.jl:281; task_local_stor...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎     902   ...rc/run.jl:218; (::Weave.var&quot;#3...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ 902   ...oading.jl:1206; include_string
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  902   ...oading.jl:1196; include_string(...
+   52╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎   902   ...e/boot.jl:373; eval
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎    850   ...tstrap.jl:32; gridbootstrap(e...
+    4╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎     188   ...dboot.jmd:1; (::var&quot;#103#104...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 181   ...src/ar.jl:18; ar1_original(y0...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 140   ...src/ar.jl:21; ar1_original(y0...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 26    ...tarray.jl:1218; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 22    ...sional.jl:839; _getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 15    ...sional.jl:853; _unsafe_getinde...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 15    ...sional.jl:862; _unsafe_getindex!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 11    ...tesian.jl:64; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 10    ...sional.jl:867; macro expansion
+    7╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 7     .../array.jl:903; setindex!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 114   ...src/ar.jl:17; #1
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 114   ...Random.jl:284; rand
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 114   ...Random.jl:281; rand
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 114   ...Random.jl:280; rand(r::TaskLoc...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 42    ...e/boot.jl:474; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 42    ...e/boot.jl:466; Array
+   42╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 42    ...e/boot.jl:457; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 72    ...Random.jl:267; rand!
+    6╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 72    ...Random.jl:272; rand!
+   18╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 18    .../array.jl:903; setindex!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 26    ...ration.jl:332; rand(rng::TaskL...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 26    ...Random.jl:257; rand
+    3╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 36    ...src/ar.jl:23; ar1_original(y0...
+   15╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 15    .../array.jl:861; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎     640   ...dboot.jmd:13; (::var&quot;#95#96&quot;{...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 227   ...src/ar.jl:72; b_est_mldivide(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 156   ...tarray.jl:1559; hcat
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 156   ...tarray.jl:1557; typed_hcat
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 27    ...tarray.jl:1568; _typed_hcat(#un...
+   27╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 27    .../tuple.jl:29; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 64    ...tarray.jl:1587; _typed_hcat(#un...
+   64╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 64    .../tuple.jl:29; getindex
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 42    ...tarray.jl:1589; _typed_hcat(#un...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 41    ...tarray.jl:1315; setindex!
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 40    ...sional.jl:894; _setindex!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 38    ...sional.jl:905; _unsafe_setinde...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 24    ...tesian.jl:64; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 18    ...sional.jl:911; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 15    .../array.jl:835; iterate
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +11 8     @Base/int.jl:982; -
+    8╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +12 8     @Base/int.jl:86; -
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 14    ...tesian.jl:65; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 14    ...ndices.jl:367; iterate
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 14    .../range.jl:837; iterate
+   14╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +11 14    ...motion.jl:468; ==
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 48    .../array.jl:520; ones
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 48    .../array.jl:522; ones
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 33    .../array.jl:525; ones
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 33    ...e/boot.jl:466; Array
+   33╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 33    ...e/boot.jl:457; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 15    .../array.jl:526; ones
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 15    .../array.jl:353; fill!
+   14╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 14    .../array.jl:903; setindex!
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 244   ...src/ar.jl:74; b_est_mldivide(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 113   ...eneric.jl:1142; \(A::Matrix{Flo...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 81    ...lgebra.jl:447; \(F::LinearAlge...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 81    ...src/lu.jl:401; ldiv!
+   79╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 79    ...lapack.jl:1025; getrs!(trans::C...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 25    ...src/lu.jl:278; lu
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 25    ...src/lu.jl:278; lu
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 25    ...src/lu.jl:279; #lu#153
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 24    ...src/lu.jl:81; lu!##kw
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 24    ...src/lu.jl:81; #lu!#146
+   18╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 19    ...lapack.jl:575; getrf!(A::Matri...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 88    ...matmul.jl:153; *
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 34    .../array.jl:378; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 34    ...e/boot.jl:467; Array
+   34╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 34    ...e/boot.jl:459; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 54    ...matmul.jl:275; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 54    ...matmul.jl:444; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 54    ...matmul.jl:375; mul!
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 54    ...matmul.jl:582; syrk_wrapper!(C...
+   52╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 52    ...c/blas.jl:1646; syrk!(uplo::Cha...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 70    ...src/ar.jl:77; b_est_mldivide(...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 30    ...aymath.jl:39; -(A::Vector{Flo...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 30    ...adcast.jl:849; broadcast_prese...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 30    ...adcast.jl:860; materialize
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 30    ...adcast.jl:885; copy
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 18    ...adcast.jl:913; copyto!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 17    ...adcast.jl:960; copyto!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 16    ...mdloop.jl:77; macro expansion
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 16    ...adcast.jl:961; macro expansion
+   15╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 15    .../array.jl:903; setindex!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 12    ...adcast.jl:211; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 12    ...adcast.jl:212; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 12    ...tarray.jl:828; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 12    ...tarray.jl:829; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 12    ...e/boot.jl:474; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +11 12    ...e/boot.jl:466; Array
+   12╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +12 12    ...e/boot.jl:457; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 39    ...matmul.jl:47; *
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 31    ...matmul.jl:275; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 31    ...matmul.jl:66; mul!
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 30    ...matmul.jl:544; gemv!(y::Vector...
+   30╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 30    ...c/blas.jl:667; gemv!(trans::Ch...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +1 63    ...src/ar.jl:78; b_est_mldivide(...
+    1╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +2 43    ...aymath.jl:55; *(A::Matrix{Flo...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +3 42    ...adcast.jl:849; broadcast_prese...
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +4 42    ...adcast.jl:860; materialize
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +5 42    ...adcast.jl:885; copy
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +6 42    ...adcast.jl:211; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +7 42    ...adcast.jl:212; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +8 42    ...tarray.jl:828; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎  +9 42    ...tarray.jl:829; similar
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +10 42    ...e/boot.jl:474; Array
+     ╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +11 42    ...e/boot.jl:467; Array
+   42╎    ╎    ╎    ╎    ╎    ╎    ╎    ╎ +12 42    ...e/boot.jl:459; Array
+     ╎28127 @Base/task.jl:544; task_done_hook(t::Task)
+     ╎ 28127 @Base/task.jl:836; wait()
+28126╎  28127 @Base/task.jl:827; poptask(W::Base.InvasiveLink...
+     ╎1004  ...eadingconstructs.jl:178; (::CUDA.var&quot;#197#199&quot;)()
+     ╎ 1004  @CUDA/src/pool.jl:130; pool_cleanup()
+     ╎  1004  @Base/asyncevent.jl:221; sleep(sec::Int64)
+     ╎   1004  @Base/asyncevent.jl:136; wait
+     ╎    1004  @Base/asyncevent.jl:118; _trywait(t::Timer)
+     ╎     1004  @Base/condition.jl:123; wait(c::Base.GenericConditi...
+     ╎    ╎ 1004  @Base/task.jl:836; wait()
+ 1004╎    ╎  1004  @Base/task.jl:827; poptask(W::Base.InvasiveL...
+   12╎12    ...m/src/generation.jl:330; rand(rng::TaskLocalRNG, sp::Ra...
+    4╎4     ...m/src/generation.jl:343; rand(rng::TaskLocalRNG, sp::Ra...
+Total snapshots: 60274
 </code></pre>
 <p>Now, the most time consuming parts of the code are, unsurprisingly,
 the call to <code>\</code>, and, perhaps surprisingly, <code>hcat</code> from
@@ -375,11 +607,10 @@ code_md(s)
   (θ=θ,se=se,e=e)
 end
 </code></pre>
-<pre><code class="language-julia">using StaticArrays
+<pre><code class="language-julia">@btime (b,t) = gridbootstrap(wrapper(b_est_nox), a-&gt;ar1_original(y0, a, est.e),
+                             αgrid, nboot);
 </code></pre>
-<pre><code>Error: ArgumentError: Package StaticArrays not found in current path:
-- Run `import Pkg; Pkg.add(&quot;StaticArrays&quot;)` to install the StaticArrays pac
-kage.
+<pre><code>49.818 ms (111648 allocations: 72.01 MiB)
 </code></pre>
 <p>We have further cut the time by a factor of two. However, this performance
 optimization has been costly in terms of readability and extensibility
@@ -462,54 +693,13 @@ code_md(s)
   (θ=θ,se=se)
 end
 </code></pre>
-<pre><code class="language-julia">println.(functiontext(&quot;gridbootstrap_threaded&quot;,joinpath(dirname(Base.pathof(ARGridBootstrap)), &quot;gridbootstrap.jl&quot;)));
-</code></pre>
-<pre><code>&quot;&quot;&quot;
-    gridbootstrap_threaded(estimator, simulator, 
-                    grid::AbstractVector, 
-                    nboot=199, rng=rngarray(nthreads())
-
-Computes grid bootstrap estimates a single parameter model. 
-
-Multithreaded version.
-
-For each α ∈ grid, repeatedly simulate data with parameter α and then compu
-te an estimate. 
-
-
-# Arguments
-- `estimator` function of output of `simulator` that returns a
-    2-tuple containing an estimate of α and its standard error.  
-- `simulator` function that given `α` and `rng`, simulates data
-    that can be used to estimate α 
-- `grid` grid of parameter values. For each value, `nboot`
-    datasets will be simulated and estimates computed.  
-- `nboot` 
-- `rng` array of RNG states of length = number of threads
-
-# Returns
-- `ba` hatα - α for each grid value and simulated dataset
-- `t` t-stat  for each grid value and simulated dataset
-&quot;&quot;&quot;
-function gridbootstrap_threaded(estimator, simulator,
-                                grid::AbstractVector,
-                                nboot=199; rng=rngarray(nthreads()))
-  g = length(grid)
-  bootq = zeros(nboot, g)
-  ba    = zeros(nboot, g)
-  bootse = zeros(nboot,g)
-  #@threads for ak in 1:g
-  #  for j in 1:nboot
-  @threads for idx ∈ CartesianIndices(ba)
-    j =  idx[1]
-    ak = idx[2]
-    (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak],rng[threadid
-()]))
-    ba[j,ak] = bootq[j,ak] - grid[ak]
-  end
-  ts = ba./bootse
-  (ba=ba, t=ts)
+<pre><code class="language-julia">estimator(y0=y0,e=est.e) = function(a)
+  out = simulate_estimate_arp(y0,a,e)
+  (out.θ[3], out.se[3])
 end
+@btime  (b,t) = gridbootstrap(estimator(), a-&gt;a, αgrid, nboot);
+</code></pre>
+<pre><code>18.658 ms (60905 allocations: 2.94 MiB)
 </code></pre>
 <p>On my computer, this version of the code is about 15 times faster than
 the original.</p>
@@ -564,7 +754,11 @@ println(&quot;$(nthreads()) threads, original version&quot;)
 end;
 </code></pre>
 <pre><code>Single thread, original version
-Error: UndefVarError: wrapper not defined
+  0.352641 seconds (408.28 k allocations: 222.350 MiB, 16.14% gc time, 30.7
+0% compilation time)
+30 threads, original version
+  0.438252 seconds (6.68 M allocations: 327.289 MiB, 58.86% compilation tim
+e)
 </code></pre>
 <p>The execution times are nearly identical on my computer. The reason is
 that the computation is dominated by the creation of <code>X</code> and
@@ -585,13 +779,13 @@ rng = rngarray(nthreads())
 @btime begin
   (bs, ts) = gridbootstrap_threaded(estimator_threaded(),
                                     (a,rng)-&gt;(a,rng), αgrid,
-                                    nboot, rng=rng)  
+                                    nboot, rng=rng)
 end;
 </code></pre>
 <pre><code>Single thread, fastest version
-Error: LoadError: UndefVarError: @btime not defined
-in expression starting at /home/paul/.julia/dev/ARGridBootstrap/docs/jmd/ar
-gridboot.jmd:3
+  18.656 ms (60905 allocations: 2.94 MiB)
+30 threads, fastest version
+  1.734 ms (61060 allocations: 2.96 MiB)
 </code></pre>
 <p>Notice how the speedup from using multiple threads is far less than
 number of cores. On my computer, the threaded version of the code is
@@ -656,14 +850,14 @@ end
 </code></pre>
 <pre><code class="language-julia">julia&gt; cuarraydemo(N,M);
 Time on CPU
-  0.004548 seconds (3 allocations: 7.645 MiB)
-  0.005072 seconds (3 allocations: 7.645 MiB)
+  0.004992 seconds (3 allocations: 7.645 MiB)
+  0.008841 seconds (3 allocations: 7.645 MiB)
 Computations on the GPU are fast
-  0.000300 seconds (61 allocations: 2.406 KiB)
-  0.000207 seconds (61 allocations: 2.406 KiB)
+  0.000658 seconds (61 allocations: 2.406 KiB)
+  0.000238 seconds (61 allocations: 2.406 KiB)
 But copying to and from GPU memory is not
-  0.001016 seconds (77 allocations: 18.609 KiB)
-  0.001003 seconds (77 allocations: 18.609 KiB)
+  0.001453 seconds (77 allocations: 18.609 KiB)
+  0.001349 seconds (77 allocations: 18.609 KiB)
 </code></pre>
 <p><code>CuArray</code>s also allow indexing, so you could use loops and other
 constructs. However, this will not be fast. <code>CuArray</code>s by itself will be
@@ -766,10 +960,10 @@ end
 </code></pre>
 <pre><code class="language-julia">julia&gt; cuarray_cudanative_compare(randn(N,M))
 CUDAnative square!
-  0.065662 seconds (18.80 k allocations: 2.233 MiB, 18.22% compilation time)
-  0.000126 seconds (3 allocations: 256 bytes)
+  0.068699 seconds (18.80 k allocations: 2.234 MiB, 20.69% compilation time)
+  0.000125 seconds (3 allocations: 256 bytes)
 CuArray A*=A
-  0.000174 seconds (23 allocations: 1.859 KiB)
+  0.000196 seconds (23 allocations: 1.859 KiB)
   0.000135 seconds (23 allocations: 1.859 KiB)
 </code></pre>
 <h3 id="kernel-limitations">Kernel Limitations<a class="headerlink" href="#kernel-limitations" title="Permanent link">&para;</a></h3>
@@ -864,9 +1058,7 @@ end
   grid = argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64);
 end;
 </code></pre>
-<pre><code>Error: LoadError: UndefVarError: @btime not defined
-in expression starting at /home/paul/.julia/dev/ARGridBootstrap/docs/jmd/ar
-gridboot.jmd:2
+<pre><code>1.167 ms (197 allocations: 568.11 KiB)
 </code></pre>
 <p>Compared to the fastest CPU code above, the GPU version takes about
 1/20th the time of the single-threaded CPU code, and about 1/5th the
