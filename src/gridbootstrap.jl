@@ -1,20 +1,20 @@
 """
-    gridbootstrap(estimator, simulator, 
-                  grid::AbstractVector, 
+    gridbootstrap(estimator, simulator,
+                  grid::AbstractVector,
                   nboot=199)
-  
-Computes grid bootstrap estimates a single parameter model. 
 
-For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. 
- 
+Computes grid bootstrap estimates a single parameter model.
+
+For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate.
+
 
 # Arguments
 - `estimator` function of output of `simulator` that returns a
-        2-tuple containing an estimate of α and its standard error.  
+        2-tuple containing an estimate of α and its standard error.
 - `simulator` function that given `α` simulates data that can be used to estimate α
 - `grid` grid of parameter values. For each value, `nboot`
-        datasets will be simulated and estimates computed.  
-- `nboot` 
+        datasets will be simulated and estimates computed.
+- `nboot`
 
 # Returns
 - `ba` hatα - α for each grid value and simulated dataset
@@ -28,7 +28,7 @@ function gridbootstrap(estimator, simulator,
   ba    = zeros(nboot, g)
   bootse = zeros(nboot,g)
   for ak in 1:g
-    for j in 1:nboot 
+    for j in 1:nboot
       (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak]))
       ba[j,ak] = bootq[j,ak] - grid[ak]
     end
@@ -39,25 +39,25 @@ end
 
 
 """
-    gridbootstrap_threaded(estimator, simulator, 
-                    grid::AbstractVector, 
+    gridbootstrap_threaded(estimator, simulator,
+                    grid::AbstractVector,
                     nboot=199, rng=rngarray(nthreads())
-    
-Computes grid bootstrap estimates a single parameter model. 
+
+Computes grid bootstrap estimates a single parameter model.
 
 Multithreaded version.
 
-For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. 
- 
+For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate.
+
 
 # Arguments
 - `estimator` function of output of `simulator` that returns a
-    2-tuple containing an estimate of α and its standard error.  
+    2-tuple containing an estimate of α and its standard error.
 - `simulator` function that given `α` and `rng`, simulates data
-    that can be used to estimate α 
+    that can be used to estimate α
 - `grid` grid of parameter values. For each value, `nboot`
-    datasets will be simulated and estimates computed.  
-- `nboot` 
+    datasets will be simulated and estimates computed.
+- `nboot`
 - `rng` array of RNG states of length = number of threads
 
 # Returns
@@ -98,7 +98,7 @@ function rngarray(n)
   rng[1] = baserng
   steps = big(10)^20 # randjump is precomputed for steps = big(10)^20
   for i in 2:nthreads()
-    rng[i] = Future.randjump(rng[i-1], steps) 
+    rng[i] = Future.randjump(rng[i-1], steps)
   end
   rng
 end
@@ -109,22 +109,22 @@ end
     argridbootstrap_gpu(e; αgrid = 0.84:(0.22/20):1.06,
                           nboot=199, RealType = Float32)
 
-Computes grid bootstrap estimates for an AR(1) model. 
+Computes grid bootstrap estimates for an AR(1) model.
 
-For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. 
- 
+For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate.
+
 # Arguments
 - `e` vector error terms that will be resampled with replacement
-        to generate bootstrap sample  
+        to generate bootstrap sample
 - `grid` grid of parameter values. For each value, `nboot`
-        datasets will be simulated and estimates computed.  
-- `nboot` 
+        datasets will be simulated and estimates computed.
+- `nboot`
 - `RealType` type of numbers for GPU computation. On many GPUs,
         Float32 will have better performance than Float64.
 
 # Returns
 - `ba` hatα - α for each grid value and simulated dataset
-- `t` t-stat  for each grid value and simulated dataset   
+- `t` t-stat  for each grid value and simulated dataset
 """
 function argridbootstrap_gpu(e, y0;
                              grid = 0.84:(0.22/20):1.06,
@@ -138,7 +138,7 @@ function argridbootstrap_gpu(e, y0;
   bootse= CuArray(zeros(RealType, nboot,g))
   αg = CuArray(RealType.(grid))
   eg = CuArray(RealType.(e))
-  ei = Int.(ceil.(length(e).*CuArrays.rand(RealType,nboot,g,length(e))))
+  ei = Int.(ceil.(length(e).*CUDA.rand(RealType,nboot,g,length(e))))
 
   # use of registers in gridkernel! limits the maximum threads to less
   # than the full 1024
@@ -154,17 +154,17 @@ function argridbootstrap_gpu(e, y0;
 end
 
 """
-    argridkernel!(ba,bootq, bootse, ar::Val{P}, e, ei, αgrid) 
+    argridkernel!(ba,bootq, bootse, ar::Val{P}, e, ei, αgrid)
 
-GPU kernel for simulation and estimation of AR(P) model. 
+GPU kernel for simulation and estimation of AR(P) model.
 
 # Arguments (modified on return)
 - `ba`: `nboot × ngrid` array.  Will be filled with bootstrap estimates of α
-   grid values of true α 
+   grid values of true α
 - `bootq`: `nboot × ngrid` array.  Will be filled with bootstrap
    estimates of α
 - `bootse`: `nboot × ngrid` array.  Will be filled with standard
-   errors of α for each bootstrap repetition      
+   errors of α for each bootstrap repetition
 
 
 # Arguments (not modified)
@@ -181,10 +181,10 @@ GPU kernel for simulation and estimation of AR(P) model.
 
 Returns nothing, but modifies in place `ba`, `bootq`, and `bootse`
 """
-function argridkernel!(ba,bootq, bootse, 
+function argridkernel!(ba,bootq, bootse,
                        ar::Val{P}, e, ei, αgrid) where P
-  b = threadIdx().x +  (blockIdx().x-1)*blockDim().x  
-  ak= threadIdx().y + (blockIdx().y-1)*blockDim().y  
+  b = threadIdx().x +  (blockIdx().x-1)*blockDim().x
+  ak= threadIdx().y + (blockIdx().y-1)*blockDim().y
   if (b>size(ba,1) || ak>size(ba,2))
     return nothing
   end
@@ -195,8 +195,8 @@ function argridkernel!(ba,bootq, bootse,
   xt = zeros(MVector{P+2,R})
   xt[1] = one(R)
   yy = zero(R)
-  xx[1,1] = T-P 
-  xx[1,2] = xx[2,1] = (T+1)*T/2 - (P+1)*P/2 #sum((P+1):T) 
+  xx[1,1] = T-P
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - (P+1)*P/2 #sum((P+1):T)
   xx[2,2] = (2*T+1)*T*(T+1)/6 - (2*P+1)*P*(P+1)/6 #sum((P+1:T).^2)
   α = zeros(MVector{P+2, R})
   α[3] = αgrid[ak]
@@ -217,7 +217,7 @@ function argridkernel!(ba,bootq, bootse,
     end
     xt[3] = y
   end
-  
+
   for i = 3:(P+2)
      for j = 1:(i-1)
        xx[i,j] = xx[j,i]
@@ -234,7 +234,7 @@ function argridkernel!(ba,bootq, bootse,
       ee -= xy[i]*ixx[i,j]*xy[j]
     end
   end
-  se3 = CUDAnative.sqrt(ixx[3,3]*ee/(T-(2*P+2)))
+  se3 = CUDA.sqrt(ixx[3,3]*ee/(T-(2*P+2)))
   bootq[b,ak]  = θ3
   bootse[b,ak] = se3
   ba[b,ak] = bootq[b,ak] - αgrid[ak]
