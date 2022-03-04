@@ -160,27 +160,52 @@ this code will not necessarily follow best practices for Julia.</p>
 e = randn(T)
 y0 = 0
 a = 0.9
-@code_string b_est_original(e)
+s = @code_string b_est_original(e)
+code_md(s)
 </code></pre>
-<pre><code>&quot;function b_est_original(yin)\n  T = length(yin)\n  x = [ones(T-1) 2:T yin[
-1:(T-1)]]\n  y = yin[2:T]\n  θ = x'*x \\ x'y\n  e = y - x*θ\n  se = sqrt.(d
-iag(inv(x'*x) *(e'*e))./(T-4))\n  (θ=θ,se=se,e=e)\nend&quot;
+<pre><code class="language-julia">function b_est_original(yin)
+  T = length(yin)
+  x = [ones(T-1) 2:T yin[1:(T-1)]]
+  y = yin[2:T]
+  θ = x'*x \ x'y
+  e = y - x*θ
+  se = sqrt.(diag(inv(x'*x) *(e'*e))./(T-4))
+  (θ=θ,se=se,e=e)
+end
 </code></pre>
-<pre><code class="language-julia">@code_string ar1_original(y0,a,e)
+<pre><code class="language-julia">s=@code_string ar1_original(y0,a,e)
+code_md(s)
 </code></pre>
-<pre><code>&quot;function ar1_original(y0, a, e, rindex=T-&gt;rand(1:length(e),T))\n  T = leng
-th(e)\n  y = Array{eltype(e)}(undef, T)\n  y[1] = abs(a)&lt;1 ? y0 : zero(elty
-pe(y))\n  et = e[rindex(T-1)]\n  for t in 2:T\n    y[t] = a*y[t-1] + et[t-1
-] \n  end\n  y\nend&quot;
+<pre><code class="language-julia">function ar1_original(y0, a, e, rindex=T-&gt;rand(1:length(e),T))
+  T = length(e)
+  y = Array{eltype(e)}(undef, T)
+  y[1] = abs(a)&lt;1 ? y0 : zero(eltype(y))
+  et = e[rindex(T-1)]
+  for t in 2:T
+    y[t] = a*y[t-1] + et[t-1] 
+  end
+  y
+end
 </code></pre>
-<pre><code class="language-julia">@code_string gridbootstrap(b_est_original, a-&gt;a, 0.5:0.1:1, 99)
+<pre><code class="language-julia">s = @code_string gridbootstrap(b_est_original, a-&gt;a, 0.5:0.1:1, 99)
+code_md(s)
 </code></pre>
-<pre><code>&quot;function gridbootstrap(estimator, simulator,\n                       grid:
-:AbstractVector,\n                       nboot=199)\n  g = length(grid)\n
-bootq = zeros(nboot, g)\n  ba    = zeros(nboot, g)\n  bootse = zeros(nboot,
-g)\n  for ak in 1:g\n    for j in 1:nboot\n      (bootq[j,ak], bootse[j,ak]
-) = estimator(simulator(grid[ak]))\n      ba[j,ak] = bootq[j,ak] - grid[ak]
-\n    end\n  end\n  ts = ba./bootse\n  (ba=ba, t=ts)\nend&quot;
+<pre><code class="language-julia">function gridbootstrap(estimator, simulator,
+                       grid::AbstractVector,
+                       nboot=199)
+  g = length(grid)
+  bootq = zeros(nboot, g)
+  ba    = zeros(nboot, g)
+  bootse = zeros(nboot,g)
+  for ak in 1:g
+    for j in 1:nboot
+      (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak]))
+      ba[j,ak] = bootq[j,ak] - grid[ak]
+    end
+  end
+  ts = ba./bootse
+  (ba=ba, t=ts)
+end
 </code></pre>
 <h2 id="improving-performance">Improving performance<a class="headerlink" href="#improving-performance" title="Permanent link">&para;</a></h2>
 <p>Now, let&rsquo;s run this code and time it. Note that we are running this
@@ -207,17 +232,17 @@ Error: UndefVarError: Profile not defined
 <pre><code>&quot;&quot;&quot;
     b_est_mldivide(y)
 
-  Estimate AR(1) model with intercept and time trend.
+  Estimate AR(1) model with intercept and time trend. 
 
     y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
 
-# Arguments
-- `y`: vector
+# Arguments    
+- `y`: vector 
 
 # Returns
 - `θ`: estimated coefficients
 - `se`: standard errors
-- `e`: residuals
+- `e`: residuals 
 &quot;&quot;&quot;
 function b_est_mldivide(yin)
   T = length(yin)
@@ -240,12 +265,20 @@ vary on each execution, but relative ones should be similar), and
 almost all of these occurred within <code>inv</code>.  If we want the
 code to be faster, we should focus on these lines.  Calling both <code>inv</code>
 and <code>\</code> is redundant; we should combine these computations.</p>
-<pre><code class="language-julia">@code_string b_est_mldivide(y)
+<pre><code class="language-julia">s = @code_string b_est_mldivide(y)
+code_md(s)
 </code></pre>
-<pre><code>&quot;function b_est_mldivide(yin)\n  T = length(yin)\n  x = [ones(T-1) 2:T yin[
-1:(T-1)]]\n  y = yin[2:T]\n  tmp = x'*x \\ [x'*y I]\n  θ = tmp[:,1]\n  ixx
-= tmp[:,2:4]\n  e = y - x*θ\n  se = sqrt.(diag(ixx *(e'*e))./(T-4))\n  (θ=θ
-,se=se,e=e)\nend&quot;
+<pre><code class="language-julia">function b_est_mldivide(yin)
+  T = length(yin)
+  x = [ones(T-1) 2:T yin[1:(T-1)]]
+  y = yin[2:T]
+  tmp = x'*x \ [x'*y I]
+  θ = tmp[:,1]
+  ixx = tmp[:,2:4]
+  e = y - x*θ
+  se = sqrt.(diag(ixx *(e'*e))./(T-4))
+  (θ=θ,se=se,e=e)
+end
 </code></pre>
 <pre><code class="language-julia">julia&gt; Profile.clear();
 Error: UndefVarError: Profile not defined
@@ -261,20 +294,20 @@ Error: UndefVarError: Profile not defined
 <p>From this, we get a speedup by about a factor of 4 on my computer.</p>
 <pre><code class="language-julia">println.(functiontext(&quot;b_est_nox&quot;,joinpath(dirname(Base.pathof(ARGridBootstrap)), &quot;ar.jl&quot;)));
 </code></pre>
-<pre><code>&quot;&quot;&quot;
+<pre><code>&quot;&quot;&quot; 
     b_est_nox(y)
 
-  Estimate AR(1) model with intercept and time trend.
+  Estimate AR(1) model with intercept and time trend. 
 
     y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
 
 # Arguments
-- `y`: vector
+- `y`: vector 
 
 # Returns
 - `θ`: estimated coefficients
 - `se`: standard errors
-- `e`: residualas
+- `e`: residualas 
 &quot;&quot;&quot;
 function b_est_nox(yin)
   T = length(yin)
@@ -289,10 +322,10 @@ function b_est_nox(yin)
     #xy[2] += t*yin[t]
     xy[2] = muladd(t, yin[t], xy[2])
     xy[3] = muladd(yin[t-1],yin[t], xy[3])
-  end
+  end 
   xx[1,1] = T-1 # = 1'*1
   xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(p+1:T)
-  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)
+  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)  
   xx[3,1] = xx[1,3]
   xx[3,2] = xx[2,3]
   ixx = inv(xx)
@@ -310,16 +343,37 @@ the call to <code>\</code>, and, perhaps surprisingly, <code>hcat</code> from
 creating <code>x</code>. Allocating and copying memory is relatively slow. The
 creation of <code>x</code> involves both. We can avoid creating <code>x</code> by just
 accumulating $X&rsquo;y$ and $X&rsquo;X$ in a loop.</p>
-<pre><code class="language-julia">@code_string b_est_nox(y)
+<pre><code class="language-julia">s = @code_string b_est_nox(y)
+code_md(s)
 </code></pre>
-<pre><code>&quot;function b_est_nox(yin)\n  T = length(yin)\n  xx = @MMatrix zeros(eltype(y
-in),3,3)\n  xy = @MVector zeros(eltype(yin),3)\n  @inbounds @simd for t in
-2:T\n    xx[1,3] += yin[t-1]\n    #xx[2,3] += t*yin[t-1]\n    xx[2,3] = mul
-add(t,yin[t-1], xx[2,3])\n    xx[3,3] += yin[t-1]^2\n   &quot; ⋯ 232 bytes ⋯ &quot;/6
- - 1 # sum((p+1:T).^2)  \n  xx[3,1] = xx[1,3]\n  xx[3,2] = xx[2,3]\n  ixx =
- inv(xx)\n  θ = ixx * xy\n  e = similar(yin,T-1)\n  @simd for t in 2:T\n
- @inbounds e[t-1] = yin[t] - θ[1] - θ[2]*t - θ[3]*yin[t-1]\n  end\n  se = s
-qrt.(diag(ixx *(e'*e))./(T-4))\n  (θ=θ,se=se,e=e)\nend&quot;
+<pre><code class="language-julia">function b_est_nox(yin)
+  T = length(yin)
+  xx = @MMatrix zeros(eltype(yin),3,3)
+  xy = @MVector zeros(eltype(yin),3)
+  @inbounds @simd for t in 2:T
+    xx[1,3] += yin[t-1]
+    #xx[2,3] += t*yin[t-1]
+    xx[2,3] = muladd(t,yin[t-1], xx[2,3])
+    xx[3,3] += yin[t-1]^2
+    xy[1] += yin[t]
+    #xy[2] += t*yin[t]
+    xy[2] = muladd(t, yin[t], xy[2])
+    xy[3] = muladd(yin[t-1],yin[t], xy[3])
+  end 
+  xx[1,1] = T-1 # = 1'*1
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(p+1:T)
+  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)  
+  xx[3,1] = xx[1,3]
+  xx[3,2] = xx[2,3]
+  ixx = inv(xx)
+  θ = ixx * xy
+  e = similar(yin,T-1)
+  @simd for t in 2:T
+    @inbounds e[t-1] = yin[t] - θ[1] - θ[2]*t - θ[3]*yin[t-1]
+  end
+  se = sqrt.(diag(ixx *(e'*e))./(T-4))
+  (θ=θ,se=se,e=e)
+end
 </code></pre>
 <pre><code class="language-julia">using StaticArrays
 </code></pre>
@@ -354,40 +408,83 @@ small StaticArrays, <code>inv</code> will call a specialized, fast version, and
 ends up being faster than <code>\</code>.</p>
 <pre><code class="language-julia">using StaticArrays
 </code></pre>
-<pre><code class="language-julia">@code_string simulate_estimate_arp(y0,a,e)
+<pre><code class="language-julia">s = @code_string simulate_estimate_arp(y0,a,e)
+code_md(s)
 </code></pre>
-<pre><code>&quot;function simulate_estimate_arp(y0, a, e, ar::Val{P}=Val(1),\n
-                  rindex=()-&gt;rand(1:length(e))) where P\n  T = length(e)\n
- length(a)==P || error(\&quot;length(a) not equal to P\&quot;)\n  xx = @MMatrix zeros
-(eltype(e),P+2, P+2)\n  xy = @MVector zeros(eltype(e),&quot; ⋯ 644 bytes ⋯ &quot;1)\n
-      xt[4:(P+2)] .= xt[3:(P+1)]\n    end\n    xt[3] = y\n  end\n  @inbound
-s for i in 3:(P+2)\n    for j in 1:(i-1)\n      xx[i,j] = xx[j,i]\n    end\
-n  end\n  ixx = inv(xx)\n  θ = ixx*xy\n  ee = yy - xy'*ixx*xy\n  se = sqrt.
-(abs.(diag(ixx *(ee))./(T-(2*P+2))))\n  (θ=θ,se=se)\nend&quot;
+<pre><code class="language-julia">function simulate_estimate_arp(y0, a, e, ar::Val{P}=Val(1),
+                               rindex=()-&gt;rand(1:length(e))) where P
+  T = length(e)
+  length(a)==P || error(&quot;length(a) not equal to P&quot;)
+  xx = @MMatrix zeros(eltype(e),P+2, P+2)
+  xy = @MVector zeros(eltype(e),P+2)
+  yy = zero(eltype(e))
+  xt = @MVector ones(eltype(e), P+2)
+  if (abs(a)&lt;1)
+    xt[3:(P+2)] .= y0
+  else 
+    xt[3:(P+2)] .= 0.0
+  end
+  α = @MVector zeros(eltype(e),P+2)
+  @simd for i = 1:P
+    α[2+i] = a[i]
+  end
+
+  xx[1,1] = T-P # = 1'*1
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - sum(1:P) # sum(P+1:T)
+  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - sum((1:P).^2) # sum((P+1:T).^2)  
+  @inbounds for t in (P+1):T
+    et = e[rindex()]
+    xt[2] = t
+    for i in 1:(P+2)
+      @simd for j in 3:(P+2)
+        xx[i,j] += xt[i]*xt[j]
+      end
+    end
+    y = dot(α, xt) + et
+    @simd for i in 1:(P+2)
+      xy[i] += xt[i]*y
+    end
+    yy += y^2
+    if (P&gt;1)
+      xt[4:(P+2)] .= xt[3:(P+1)]
+    end
+    xt[3] = y
+  end
+  @inbounds for i in 3:(P+2)
+    for j in 1:(i-1)
+      xx[i,j] = xx[j,i]
+    end
+  end
+  ixx = inv(xx)
+  θ = ixx*xy
+  ee = yy - xy'*ixx*xy
+  se = sqrt.(abs.(diag(ixx *(ee))./(T-(2*P+2))))
+  (θ=θ,se=se)
+end
 </code></pre>
 <pre><code class="language-julia">println.(functiontext(&quot;gridbootstrap_threaded&quot;,joinpath(dirname(Base.pathof(ARGridBootstrap)), &quot;gridbootstrap.jl&quot;)));
 </code></pre>
 <pre><code>&quot;&quot;&quot;
-    gridbootstrap_threaded(estimator, simulator,
-                    grid::AbstractVector,
+    gridbootstrap_threaded(estimator, simulator, 
+                    grid::AbstractVector, 
                     nboot=199, rng=rngarray(nthreads())
 
-Computes grid bootstrap estimates a single parameter model.
+Computes grid bootstrap estimates a single parameter model. 
 
 Multithreaded version.
 
 For each α ∈ grid, repeatedly simulate data with parameter α and then compu
-te an estimate.
+te an estimate. 
 
 
 # Arguments
 - `estimator` function of output of `simulator` that returns a
-    2-tuple containing an estimate of α and its standard error.
+    2-tuple containing an estimate of α and its standard error.  
 - `simulator` function that given `α` and `rng`, simulates data
-    that can be used to estimate α
+    that can be used to estimate α 
 - `grid` grid of parameter values. For each value, `nboot`
-    datasets will be simulated and estimates computed.
-- `nboot`
+    datasets will be simulated and estimates computed.  
+- `nboot` 
 - `rng` array of RNG states of length = number of threads
 
 # Returns
@@ -442,12 +539,10 @@ result of each iteration is (mostly) independent of all others.</p>
 multi-threaded code. See
 <a href="https://docs.julialang.org/en/v1/manual/parallel-computing/index.html#Side-effects-and-mutable-function-arguments-1">the Julia docs</a> for more information.</p>
 <pre><code class="language-julia">rng = rngarray(nthreads())
-@code_string gridbootstrap_threaded(wrapper(b_est_original),
-                               (a, rng)-&gt;ar1_original(y0, a, est.e, n-&gt;rand(rng,1:(T-1),n)),
-                               αgrid, 2, rng=rng)
+s=@code_string gridbootstrap_threaded(wrapper(b_est_original), (a, rng)-&gt;ar1_original(y0, a, est.e, n-&gt;rand(rng,1:(T-1),n)),αgrid, 2, rng=rng)
+code_md(s)
 </code></pre>
-<pre><code>Error: MethodError: no method matching getindex(::Nothing, ::Int64)
-</code></pre>
+<p>Error: MethodError: no method matching getindex(::Nothing, ::Int64)</p>
 <p>Now, let&rsquo;s try multi-threading the original version of the code.</p>
 <pre><code class="language-julia">using Base.Threads
 println(&quot;Single thread, original version&quot;)
@@ -490,7 +585,7 @@ rng = rngarray(nthreads())
 @btime begin
   (bs, ts) = gridbootstrap_threaded(estimator_threaded(),
                                     (a,rng)-&gt;(a,rng), αgrid,
-                                    nboot, rng=rng)
+                                    nboot, rng=rng)  
 end;
 </code></pre>
 <pre><code>Single thread, fastest version
@@ -561,14 +656,14 @@ end
 </code></pre>
 <pre><code class="language-julia">julia&gt; cuarraydemo(N,M);
 Time on CPU
-  0.004423 seconds (3 allocations: 7.645 MiB)
-  0.008253 seconds (3 allocations: 7.645 MiB)
+  0.004548 seconds (3 allocations: 7.645 MiB)
+  0.005072 seconds (3 allocations: 7.645 MiB)
 Computations on the GPU are fast
-  0.000359 seconds (61 allocations: 2.406 KiB)
-  0.000222 seconds (61 allocations: 2.406 KiB)
+  0.000300 seconds (61 allocations: 2.406 KiB)
+  0.000207 seconds (61 allocations: 2.406 KiB)
 But copying to and from GPU memory is not
-  0.001494 seconds (77 allocations: 18.609 KiB)
-  0.001376 seconds (77 allocations: 18.609 KiB)
+  0.001016 seconds (77 allocations: 18.609 KiB)
+  0.001003 seconds (77 allocations: 18.609 KiB)
 </code></pre>
 <p><code>CuArray</code>s also allow indexing, so you could use loops and other
 constructs. However, this will not be fast. <code>CuArray</code>s by itself will be
@@ -671,11 +766,11 @@ end
 </code></pre>
 <pre><code class="language-julia">julia&gt; cuarray_cudanative_compare(randn(N,M))
 CUDAnative square!
-  0.065133 seconds (18.80 k allocations: 2.233 MiB, 18.05% compilation time)
-  0.000127 seconds (3 allocations: 256 bytes)
+  0.065662 seconds (18.80 k allocations: 2.233 MiB, 18.22% compilation time)
+  0.000126 seconds (3 allocations: 256 bytes)
 CuArray A*=A
-  0.000175 seconds (23 allocations: 1.859 KiB)
-  0.000136 seconds (23 allocations: 1.859 KiB)
+  0.000174 seconds (23 allocations: 1.859 KiB)
+  0.000135 seconds (23 allocations: 1.859 KiB)
 </code></pre>
 <h3 id="kernel-limitations">Kernel Limitations<a class="headerlink" href="#kernel-limitations" title="Permanent link">&para;</a></h3>
 <p>CUDA kernel functions execute on the GPU and in GPU memory. Since GPU
@@ -698,20 +793,72 @@ function, but it requires using the low-level interface to CUDA in
 dynamically allocating and freeing memory in each of the thousands of
 threads you execute.<sup id="fnref:caveat"><a class="footnote-ref" href="#fn:caveat">3</a></sup></p>
 <h2 id="gpu-grid-bootstrap">GPU grid bootstrap<a class="headerlink" href="#gpu-grid-bootstrap" title="Permanent link">&para;</a></h2>
-<pre><code class="language-julia">@code_string argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64)
+<pre><code class="language-julia">s = @code_string argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64)
+code_md(s)
 </code></pre>
-<pre><code>Error: MethodError: no method matching getindex(::Nothing, ::Int64)
+<p>Error: MethodError: no method matching getindex(::Nothing, ::Int64)</p>
+<pre><code class="language-julia">s = @code_string ARGridBootstrap.argridkernel!(1.,1., 1., Val(1), 1., 1. , 1.)
+code_md(s)
 </code></pre>
-<pre><code class="language-julia">@code_string ARGridBootstrap.argridkernel!(1.,1., 1., Val(1), 1., 1. , 1.)
-</code></pre>
-<pre><code>&quot;function argridkernel!(ba,bootq, bootse,\n                       ar::Val{P
-}, e, ei, αgrid) where P\n  b = threadIdx().x +  (blockIdx().x-1)*blockDim(
-).x\n  ak= threadIdx().y + (blockIdx().y-1)*blockDim().y\n  if (b&gt;size(ba,1
-) || ak&gt;size(ba,2))\n    return nothing\n  end\n  T = &quot; ⋯ 777 bytes ⋯ &quot;or i
- = 1:3\n    θ3 += ixx[3,i]*xy[i]\n  end\n  ee = yy\n  for i = 1:3\n    for
-j = 1:3\n      ee -= xy[i]*ixx[i,j]*xy[j]\n    end\n  end\n  se3 = CUDA.sqr
-t(ixx[3,3]*ee/(T-(2*P+2)))\n  bootq[b,ak]  = θ3\n  bootse[b,ak] = se3\n  ba
-[b,ak] = bootq[b,ak] - αgrid[ak]\n  return nothing\nend&quot;
+<pre><code class="language-julia">function argridkernel!(ba,bootq, bootse,
+                       ar::Val{P}, e, ei, αgrid) where P
+  b = threadIdx().x +  (blockIdx().x-1)*blockDim().x
+  ak= threadIdx().y + (blockIdx().y-1)*blockDim().y
+  if (b&gt;size(ba,1) || ak&gt;size(ba,2))
+    return nothing
+  end
+  T = size(ei,3)
+  R = eltype(ba)
+  xx = zeros(MMatrix{P+2,P+2,R})
+  xy = zeros(MVector{P+2,R})
+  xt = zeros(MVector{P+2,R})
+  xt[1] = one(R)
+  yy = zero(R)
+  xx[1,1] = T-P
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - (P+1)*P/2 #sum((P+1):T)
+  xx[2,2] = (2*T+1)*T*(T+1)/6 - (2*P+1)*P*(P+1)/6 #sum((P+1:T).^2)
+  α = zeros(MVector{P+2, R})
+  α[3] = αgrid[ak]
+  @inbounds for t = (P+1):T
+    xt[2] = t
+    for i = 1:(P+2)
+      for j = 3:(P+2)
+        xx[i,j] += xt[i]*xt[j]
+      end
+    end
+    y = e[ei[b,ak,t]] + dot(α,xt)
+    for i in 1:(P+2)
+      xy[i] += xt[i]*y
+    end
+    yy += y*y
+    for i = 4:(P+2) # shift y lags
+      xt[i] = xt[i-1]
+    end
+    xt[3] = y
+  end
+
+  for i = 3:(P+2)
+     for j = 1:(i-1)
+       xx[i,j] = xx[j,i]
+     end
+  end
+  ixx = inv(xx)
+  θ3 = zero(R)
+  for i = 1:3
+    θ3 += ixx[3,i]*xy[i]
+  end
+  ee = yy
+  for i = 1:3
+    for j = 1:3
+      ee -= xy[i]*ixx[i,j]*xy[j]
+    end
+  end
+  se3 = CUDA.sqrt(ixx[3,3]*ee/(T-(2*P+2)))
+  bootq[b,ak]  = θ3
+  bootse[b,ak] = se3
+  ba[b,ak] = bootq[b,ak] - αgrid[ak]
+  return nothing
+end
 </code></pre>
 <pre><code class="language-julia">@btime begin
   grid = argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64);
