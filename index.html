@@ -9,74 +9,61 @@
         
         <link rel="shortcut icon" href="img/favicon.ico">
         <title>ARGridBootstrap.jl</title>
-        <link href="css/bootstrap-custom.min.css" rel="stylesheet">
+        <link href="css/bootstrap.min.css" rel="stylesheet">
         <link href="css/font-awesome.min.css" rel="stylesheet">
         <link href="css/base.css" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atelier-forest-light.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/atelier-forest-light.min.css">
         <link href="assets/Documenter.css" rel="stylesheet">
-        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-        <!--[if lt IE 9]>
-            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
-        <![endif]-->
 
         <script src="js/jquery-1.10.2.min.js" defer></script>
-        <script src="js/bootstrap-3.0.3.min.js" defer></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+        <script src="js/bootstrap.min.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
         <script>hljs.initHighlightingOnLoad();</script> 
     </head>
 
     <body class="homepage">
-
-        <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
             <div class="container">
-
-                <!-- Collapsed navigation -->
-                <div class="navbar-header">
-                    <!-- Expander button -->
-                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-                        <span class="sr-only">Toggle navigation</span>
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
-                    </button>
-                    <a class="navbar-brand" href=".">ARGridBootstrap.jl</a>
-                </div>
+                <a class="navbar-brand" href=".">ARGridBootstrap.jl</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbar-collapse">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
                 <!-- Expanded navigation -->
-                <div class="navbar-collapse collapse">
+                <div id="navbar-collapse" class="navbar-collapse collapse">
                         <!-- Main navigation -->
                         <ul class="nav navbar-nav">
-                            <li class="active">
-                                <a href=".">Package Documentation</a>
+                            <li class="navitem active">
+                                <a href="." class="nav-link">Package Documentation</a>
                             </li>
-                            <li >
-                                <a href="argridboot/">Coding for Performance</a>
+                            <li class="navitem">
+                                <a href="argridboot/" class="nav-link">Coding for Performance</a>
                             </li>
                             <li class="dropdown">
-                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">About <b class="caret"></b></a>
+                                <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">About <b class="caret"></b></a>
                                 <ul class="dropdown-menu">
                                     
-<li >
-    <a href="license/">License</a>
+<li>
+    <a href="license/" class="dropdown-item">License</a>
 </li>
                                 </ul>
                             </li>
                         </ul>
 
-                    <ul class="nav navbar-nav navbar-right">
-                            <li class="disabled">
-                                <a rel="next" >
+                    <ul class="nav navbar-nav ml-auto">
+                            <li class="nav-item">
+                                <a rel="prev" class="nav-link disabled">
                                     <i class="fa fa-arrow-left"></i> Previous
                                 </a>
                             </li>
-                            <li >
-                                <a rel="prev" href="argridboot/">
+                            <li class="nav-item">
+                                <a rel="next" href="argridboot/" class="nav-link">
                                     Next <i class="fa fa-arrow-right"></i>
                                 </a>
                             </li>
-                            <li>
-                                <a href="https://github.com/schrimpf/ARGridBootstrap.jl/edit/master/docs/index.md"><i class="fa fa-github"></i> Edit on GitHub</a>
+                            <li class="nav-item">
+                                <a href="https://github.com/schrimpf/ARGridBootstrap.jl/edit/master/docs/index.md" class="nav-link"><i class="fa fa-github"></i> Edit on GitHub</a>
                             </li>
                     </ul>
                 </div>
@@ -84,43 +71,61 @@
         </div>
 
         <div class="container">
-                <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
-    <ul class="nav bs-sidenav">
-        <li class="main active"><a href="#argridbootstrapjl">ARGridBootstrap.jl</a></li>
-            <li><a href="#functions">Functions</a></li>
-    </ul>
-</div></div>
-                <div class="col-md-9" role="main">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-light navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-toggle="collapse" data-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
 
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-secondary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-level="1"><a href="#argridbootstrapjl" class="nav-link">ARGridBootstrap.jl</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-level="2"><a href="#functions" class="nav-link">Functions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<p><a id='ARGridBootstrap.jl'></a></p>
 <p><a id='ARGridBootstrap.jl-1'></a></p>
 <h1 id="argridbootstrapjl">ARGridBootstrap.jl<a class="headerlink" href="#argridbootstrapjl" title="Permanent link">&para;</a></h1>
 <p>This package implements the grid bootstrap of Hansen (1999). </p>
 <p>For teaching purposes, multiple versions of the &ldquo;same&rdquo; function are included. The differences between these versions illustrate various techniques to improve performance. See <a href="@ref">Coding for Performance</a>.</p>
+<p><a id='Functions'></a></p>
 <p><a id='Functions-1'></a></p>
 <h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href=".#ARGridBootstrap.ar1_original"><code>ARGridBootstrap.ar1_original</code></a></li>
-<li><a href=".#ARGridBootstrap.argridbootstrap_gpu-Tuple{Any,Any}"><code>ARGridBootstrap.argridbootstrap_gpu</code></a></li>
-<li><a href=".#ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any,Any,Any,Val{P},Any,Any,Any}} where P"><code>ARGridBootstrap.argridkernel!</code></a></li>
+<li><a href=".#ARGridBootstrap.argridbootstrap_gpu-Tuple{Any, Any}"><code>ARGridBootstrap.argridbootstrap_gpu</code></a></li>
+<li><a href=".#ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any, Any, Any, Val{P}, Any, Any, Any}} where P"><code>ARGridBootstrap.argridkernel!</code></a></li>
 <li><a href=".#ARGridBootstrap.b_est_mldivide-Tuple{Any}"><code>ARGridBootstrap.b_est_mldivide</code></a></li>
 <li><a href=".#ARGridBootstrap.b_est_nox-Tuple{Any}"><code>ARGridBootstrap.b_est_nox</code></a></li>
 <li><a href=".#ARGridBootstrap.b_est_original-Tuple{Any}"><code>ARGridBootstrap.b_est_original</code></a></li>
 <li><a href=".#ARGridBootstrap.gridbootstrap"><code>ARGridBootstrap.gridbootstrap</code></a></li>
 <li><a href=".#ARGridBootstrap.gridbootstrap_threaded"><code>ARGridBootstrap.gridbootstrap_threaded</code></a></li>
 <li><a href=".#ARGridBootstrap.rngarray-Tuple{Any}"><code>ARGridBootstrap.rngarray</code></a></li>
-<li><a href=".#ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any,Any,Any}, Tuple{Any,Any,Any,Val{P}}, Tuple{Any,Any,Any,Val{P},Any}} where P"><code>ARGridBootstrap.simulate_estimate_arp</code></a></li>
+<li><a href=".#ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any, Any, Any}, Tuple{Any, Any, Any, Val{P}}, Tuple{Any, Any, Any, Val{P}, Any}} where P"><code>ARGridBootstrap.simulate_estimate_arp</code></a></li>
 </ul>
+<p><a id='AR'></a></p>
 <p><a id='AR-1'></a></p>
 <h3 id="ar">AR<a class="headerlink" href="#ar" title="Permanent link">&para;</a></h3>
 <p><a id='ARGridBootstrap.ar1_original' href='#ARGridBootstrap.ar1_original'>#</a>
 <strong><code>ARGridBootstrap.ar1_original</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code class="julia">ar1_original(y0, a, e, rindex=T-&gt;rand(1:length(e), T))
+<pre><code class="language-julia">ar1_original(y0, a, e, rindex=T-&gt;rand(1:length(e), T))
 </code></pre>
-
 <p>Simulate AR1 model by sampling errors from e with replacement. </p>
 <pre><code>y[t] = a*y[t-1] + ϵ[t]
 </code></pre>
-
 <p><strong>Arguments</strong></p>
 <ul>
 <li><code>y0</code>: initial value for <code>y</code></li>
@@ -132,16 +137,14 @@
 <ul>
 <li><code>y</code>: vector of length <code>T = length(e)</code></li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/ar.jl#LL1-L16' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/ar.jl#LL1-L16' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.b_est_mldivide-Tuple{Any}' href='#ARGridBootstrap.b_est_mldivide-Tuple{Any}'>#</a>
 <strong><code>ARGridBootstrap.b_est_mldivide</code></strong> &mdash; <em>Method</em>.</p>
-<pre><code class="julia">b_est_mldivide(y)
+<pre><code class="language-julia">b_est_mldivide(y)
 </code></pre>
-
 <p>Estimate AR(1) model with intercept and time trend. </p>
 <pre><code>y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
 </code></pre>
-
 <p><strong>Arguments</strong></p>
 <ul>
 <li><code>y</code>: vector</li>
@@ -152,16 +155,14 @@
 <li><code>se</code>: standard errors</li>
 <li><code>e</code>: residuals</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/ar.jl#LL55-L69' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/ar.jl#LL55-L69' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.b_est_nox-Tuple{Any}' href='#ARGridBootstrap.b_est_nox-Tuple{Any}'>#</a>
 <strong><code>ARGridBootstrap.b_est_nox</code></strong> &mdash; <em>Method</em>.</p>
-<pre><code class="julia">b_est_nox(y)
+<pre><code class="language-julia">b_est_nox(y)
 </code></pre>
-
 <p>Estimate AR(1) model with intercept and time trend. </p>
 <pre><code>y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
 </code></pre>
-
 <p><strong>Arguments</strong></p>
 <ul>
 <li><code>y</code>: vector</li>
@@ -172,16 +173,14 @@
 <li><code>se</code>: standard errors</li>
 <li><code>e</code>: residualas</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/ar.jl#LL82-L97' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/ar.jl#LL82-L97' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.b_est_original-Tuple{Any}' href='#ARGridBootstrap.b_est_original-Tuple{Any}'>#</a>
 <strong><code>ARGridBootstrap.b_est_original</code></strong> &mdash; <em>Method</em>.</p>
-<pre><code class="julia">b_est_original(y)
+<pre><code class="language-julia">b_est_original(y)
 </code></pre>
-
 <p>Estimate AR(1) model with intercept and time trend</p>
 <pre><code>y[t] = θ[0] + θ[1]t + θ[2]y[t-1] + e[t]
 </code></pre>
-
 <p><strong>Arguments</strong></p>
 <ul>
 <li><code>y</code>: vector</li>
@@ -192,12 +191,11 @@
 <li><code>se</code>: standard errors</li>
 <li><code>e</code>: residuals</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/ar.jl#LL29-L43' class='documenter-source'>source</a><br></p>
-<p><a id='ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any,Any,Any}, Tuple{Any,Any,Any,Val{P}}, Tuple{Any,Any,Any,Val{P},Any}} where P' href='#ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any,Any,Any}, Tuple{Any,Any,Any,Val{P}}, Tuple{Any,Any,Any,Val{P},Any}} where P'>#</a>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/ar.jl#LL29-L43' class='documenter-source'>source</a><br></p>
+<p><a id='ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any, Any, Any}, Tuple{Any, Any, Any, Val{P}}, Tuple{Any, Any, Any, Val{P}, Any}} where P' href='#ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any, Any, Any}, Tuple{Any, Any, Any, Val{P}}, Tuple{Any, Any, Any, Val{P}, Any}} where P'>#</a>
 <strong><code>ARGridBootstrap.simulate_estimate_arp</code></strong> &mdash; <em>Method</em>.</p>
-<pre><code class="julia">simulate_estimate_arp(y0, a, e, ar::Val{P}, rindex=T-&gt;rand(1:length(e),T))
+<pre><code class="language-julia">simulate_estimate_arp(y0, a, e, ar::Val{P}, rindex=T-&gt;rand(1:length(e),T))
 </code></pre>
-
 <p>Simulates and estimates an AR(P) model. <code>y</code> is simulated as</p>
 <p>y[t] = a*y[t-1] + ϵ[t]</p>
 <p>and the estimate of θ from </p>
@@ -216,15 +214,15 @@
 <li><code>θ</code> estimated coefficients</li>
 <li><code>se</code> standard errors</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/ar.jl#LL126-L149' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/ar.jl#LL126-L149' class='documenter-source'>source</a><br></p>
+<p><a id='Grid-Bootstrap'></a></p>
 <p><a id='Grid-Bootstrap-1'></a></p>
 <h3 id="grid-bootstrap">Grid Bootstrap<a class="headerlink" href="#grid-bootstrap" title="Permanent link">&para;</a></h3>
-<p><a id='ARGridBootstrap.argridbootstrap_gpu-Tuple{Any,Any}' href='#ARGridBootstrap.argridbootstrap_gpu-Tuple{Any,Any}'>#</a>
+<p><a id='ARGridBootstrap.argridbootstrap_gpu-Tuple{Any, Any}' href='#ARGridBootstrap.argridbootstrap_gpu-Tuple{Any, Any}'>#</a>
 <strong><code>ARGridBootstrap.argridbootstrap_gpu</code></strong> &mdash; <em>Method</em>.</p>
-<pre><code class="julia">argridbootstrap_gpu(e; αgrid = 0.84:(0.22/20):1.06,
+<pre><code class="language-julia">argridbootstrap_gpu(e; αgrid = 0.84:(0.22/20):1.06,
                       nboot=199, RealType = Float32)
 </code></pre>
-
 <p>Computes grid bootstrap estimates for an AR(1) model. </p>
 <p>For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. </p>
 <p><strong>Arguments</strong></p>
@@ -239,14 +237,33 @@
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat  for each grid value and simulated dataset</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL108-L128' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/gridbootstrap.jl#LL108-L128' class='documenter-source'>source</a><br></p>
+<p><a id='ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any, Any, Any, Val{P}, Any, Any, Any}} where P' href='#ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any, Any, Any, Val{P}, Any, Any, Any}} where P'>#</a>
+<strong><code>ARGridBootstrap.argridkernel!</code></strong> &mdash; <em>Method</em>.</p>
+<pre><code class="language-julia">argridkernel!(ba,bootq, bootse, ar::Val{P}, e, ei, αgrid)
+</code></pre>
+<p>GPU kernel for simulation and estimation of AR(P) model. </p>
+<p><strong>Arguments (modified on return)</strong></p>
+<ul>
+<li><code>ba</code>: <code>nboot × ngrid</code> array.  Will be filled with bootstrap estimates of α  grid values of true α</li>
+<li><code>bootq</code>: <code>nboot × ngrid</code> array.  Will be filled with bootstrap  estimates of α</li>
+<li><code>bootse</code>: <code>nboot × ngrid</code> array.  Will be filled with standard  errors of α for each bootstrap repetition</li>
+</ul>
+<p><strong>Arguments (not modified)</strong></p>
+<ul>
+<li><code>ar::Val{P}</code> : autoregressive order for estimation. Simulated  model will always be AR(1) with 0 intercept and time trend, but  estimation will use an AR(P) model with intercept and time  trend. Only the AR(1) parameter estimate is included in <code>ba</code>,  <code>bootq</code>, and <code>bootse</code>.</li>
+<li><code>e</code> : error terms to draw with replacement</li>
+<li><code>ei</code> : <code>nboot × ngrid × length(e)</code> array of indices of <code>e</code> to        use to generate bootstrap sample1</li>
+<li><code>αgrid</code> : length <code>ngrid</code> values of AR(1) parameter to perform  bootstrap on.</li>
+</ul>
+<p>Returns nothing, but modifies in place <code>ba</code>, <code>bootq</code>, and <code>bootse</code></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/gridbootstrap.jl#LL156-L183' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.gridbootstrap' href='#ARGridBootstrap.gridbootstrap'>#</a>
 <strong><code>ARGridBootstrap.gridbootstrap</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code class="julia">gridbootstrap(estimator, simulator, 
+<pre><code class="language-julia">gridbootstrap(estimator, simulator, 
               grid::AbstractVector, 
               nboot=199)
 </code></pre>
-
 <p>Computes grid bootstrap estimates a single parameter model. </p>
 <p>For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. </p>
 <p><strong>Arguments</strong></p>
@@ -261,14 +278,13 @@
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat  for each grid value and simulated dataset</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL1-L22' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/gridbootstrap.jl#LL1-L22' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.gridbootstrap_threaded' href='#ARGridBootstrap.gridbootstrap_threaded'>#</a>
 <strong><code>ARGridBootstrap.gridbootstrap_threaded</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code class="julia">gridbootstrap_threaded(estimator, simulator, 
+<pre><code class="language-julia">gridbootstrap_threaded(estimator, simulator, 
                 grid::AbstractVector, 
                 nboot=199, rng=rngarray(nthreads())
 </code></pre>
-
 <p>Computes grid bootstrap estimates a single parameter model. </p>
 <p>Multithreaded version.</p>
 <p>For each α ∈ grid, repeatedly simulate data with parameter α and then compute an estimate. </p>
@@ -285,36 +301,15 @@
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat  for each grid value and simulated dataset</li>
 </ul>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL41-L66' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/gridbootstrap.jl#LL41-L66' class='documenter-source'>source</a><br></p>
 <p><a id='ARGridBootstrap.rngarray-Tuple{Any}' href='#ARGridBootstrap.rngarray-Tuple{Any}'>#</a>
 <strong><code>ARGridBootstrap.rngarray</code></strong> &mdash; <em>Method</em>.</p>
-<pre><code class="julia">rngarray(n)
+<pre><code class="language-julia">rngarray(n)
 </code></pre>
-
 <p>Create <code>n</code> rng states that will not overlap for 10^20 steps.</p>
 <p>Note: this will be unneeded in Julia 1.3 when thread-safe RNG is   included.</p>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL87-L94' class='documenter-source'>source</a><br></p>
-<p><a id='ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any,Any,Any,Val{P},Any,Any,Any}} where P' href='#ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any,Any,Any,Val{P},Any,Any,Any}} where P'>#</a>
-<strong><code>ARGridBootstrap.argridkernel!</code></strong> &mdash; <em>Method</em>.</p>
-<pre><code class="julia">argridkernel!(ba,bootq, bootse, ar::Val{P}, e, ei, αgrid)
-</code></pre>
-
-<p>GPU kernel for simulation and estimation of AR(P) model. </p>
-<p><strong>Arguments (modified on return)</strong></p>
-<ul>
-<li><code>ba</code>: <code>nboot × ngrid</code> array.  Will be filled with bootstrap estimates of α  grid values of true α</li>
-<li><code>bootq</code>: <code>nboot × ngrid</code> array.  Will be filled with bootstrap  estimates of α</li>
-<li><code>bootse</code>: <code>nboot × ngrid</code> array.  Will be filled with standard  errors of α for each bootstrap repetition</li>
-</ul>
-<p><strong>Arguments (not modified)</strong></p>
-<ul>
-<li><code>ar::Val{P}</code> : autoregressive order for estimation. Simulated  model will always be AR(1) with 0 intercept and time trend, but  estimation will use an AR(P) model with intercept and time  trend. Only the AR(1) parameter estimate is included in <code>ba</code>,  <code>bootq</code>, and <code>bootse</code>.</li>
-<li><code>e</code> : error terms to draw with replacement</li>
-<li><code>ei</code> : <code>nboot × ngrid × length(e)</code> array of indices of <code>e</code> to        use to generate bootstrap sample1</li>
-<li><code>αgrid</code> : length <code>ngrid</code> values of AR(1) parameter to perform  bootstrap on.</li>
-</ul>
-<p>Returns nothing, but modifies in place <code>ba</code>, <code>bootq</code>, and <code>bootse</code></p>
-<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/755b97a908689b349e76c38618bbc6f16442f24d/src/gridbootstrap.jl#LL156-L183' class='documenter-source'>source</a><br></p></div>
+<p><a target='_blank' href='https://github.com/schrimpf/ARGridBootstrap.jl/blob/f13c0c5ab50b4d5ed5eb0885b7f7c36f057a3265/src/gridbootstrap.jl#LL87-L94' class='documenter-source'>source</a><br></p></div>
+            </div>
         </div>
 
         <footer class="col-md-12">
@@ -330,12 +325,12 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML" defer></script>
         <script src="assets/mathjaxhelper.js" defer></script>
 
-        <div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="Keyboard Shortcuts Modal" aria-hidden="true">
+        <div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
                 <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-                <h4 class="modal-title" id="exampleModalLabel">Keyboard Shortcuts</h4>
             </div>
             <div class="modal-body">
               <table class="table">
@@ -375,6 +370,6 @@
 </html>
 
 <!--
-MkDocs version : 1.0.4
-Build Date UTC : 2019-11-07 20:24:59
+MkDocs version : 1.2.3
+Build Date UTC : 2022-03-04 19:24:12.890870+00:00
 -->
