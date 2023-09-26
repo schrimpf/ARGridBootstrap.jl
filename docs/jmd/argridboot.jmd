@@ -88,7 +88,7 @@ wrapper(b_est) = function(x)
   out=b_est(x)
   (out.θ[3], out.se[3])
 end
-bench=@benchmark (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+benchorig=@benchmark (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
                              αgrid, nboot);
 ```
 
@@ -104,13 +104,19 @@ Profile.print(noisefloor=2.0)
 
 Profile.jl works very simply. Every 0.0001 seconds, the line of code
 being executed gets recorded. `Profile.print` shows the count of how
-many times each line of code got recorded. From the output (these
-numbers can vary quite a bit from run to run), we see
-there were 640 ticks in ` gridbootstrap_original` (exact numbers will
-vary on each execution, but relative ones should be similar), and
-almost all of these occurred within `inv`.  If we want the
-code to be faster, we should focus on these lines.  Calling both `inv`
-and `\` is redundant; we should combine these computations.
+many times each line of code got recorded. 
+
+!!! warning
+    The following was true on an older version of Julia, but now there are no 
+    gains from eliminating `inv`.
+
+    From the output (these
+    numbers can vary quite a bit from run to run), we see
+    there were 640 ticks in ` gridbootstrap_original` (exact numbers will
+    vary on each execution, but relative ones should be similar), and
+    almost all of these occurred within `inv`.  If we want the
+    code to be faster, we should focus on these lines.  Calling both `inv`
+    and `\` is redundant; we should combine these computations.
 
 ```julia; output_as_code=true; output_eval=false
 @code_string b_est_mldivide(y)
@@ -118,10 +124,11 @@ and `\` is redundant; we should combine these computations.
 
 ```julia; term=true; cache=true
 
-@btime (b,t) = gridbootstrap(wrapper(b_est_mldivide), a->ar1_original(y0, a, est.e),
+benchml=@benchmark (b,t) = gridbootstrap(wrapper(b_est_mldivide), a->ar1_original(y0, a, est.e),
                              αgrid, nboot);
 ```
-From this, we get a speedup by about a factor of 4 on my computer.
+~~From this, we get a speedup by about a factor of 4 on my computer.~~ 
+This used to make a big difference, but no longer seems to matter.
 
 
 ```julia; term=true; cache=true
@@ -134,23 +141,69 @@ Profile.print(noisefloor=2.0)
 Now, the most time consuming parts of the code are, unsurprisingly,
 the call to ` \`, and, perhaps surprisingly, ` hcat` from
 creating ` x`. Allocating and copying memory is relatively slow. The
-creation of ` x` involves both. We can avoid creating `x` by just
-accumulating $X'y$ and $X'X$ in a loop.
+creation of ` x` involves both. 
+
+One option is to preallocate an arrays and reuse them. The struct `bEstCache` does this.
+```julia; term=true; cache=true
+b_est_cache = ARGridBootstrap.bEstCached(T-1)
+benchcache=@benchmark gridbootstrap(wrapper(b_est_cache), a->ar1_original(y0, a, est.e), 
+                                    αgrid, nboot);
+```
+
+```julia
+@profview (b,t) = gridbootstrap(wrapper(b_est_cache), a->ar1_original(y0, a, est.e),
+                               αgrid, 999);
+```
+
+Better yet, we can avoid creating `x` by just accumulating $X'y$ and $X'X$ in a loop.
 
 ```julia; output_as_code=true; output_eval=false
 @code_string b_est_nox(y)
 ```
+We put the two main loops into separate functions both for organization and to 
+allow us to focus on optimizing these loops below.
 
-```julia; cache=true
-@btime (b,t) = gridbootstrap(wrapper(b_est_nox), a->ar1_original(y0, a, est.e),
-                             αgrid, nboot);
+```julia; output_as_code=true; output_eval=false
+@code_string ARGridBootstrap.xx_xy!(zeros(3,3),zeros(3),y)
 ```
 
-We have further cut the time by a factor of two. However, this performance
-optimization has been costly in terms of readability and extensibility
+```julia; output_as_code=true; output_eval=false
+@code_string ARGridBootstrap.resids!(zeros(length(y)-1),y,zeros(3))
+```
+
+
+```julia; term=true; cache=true
+benchnox=@benchmark (b,t) = gridbootstrap(wrapper(b_est_nox), a->ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+benchnox
+```
+```julia; term=true; cache=true
+Profile.clear();
+@profview (b,t) = gridbootstrap(wrapper(b_est_simd), a->ar1_original(y0, a, est.e),
+                             αgrid, 4999);
+Profile.print(noisefloor=2.0)
+```
+
+We have further cut the time by a factor of two. However, this performance optimization has been costly in terms of readability and extensibility
 of our code. If we wanted to fit an AR(p) model instead of AR(1), the
 ` b_est_nox` function would be more difficult to modify than the
 ` b_est_mldivide` version.
+
+We additionally gained some performance by using mutable `StaticArrays` to hold $X'X$ and $X'y$. 
+```julia; term=true
+xx = zeros(3,3)
+xy = zeros(3,3)
+@benchmark ARGridBootstrap.xx_xy!(xx,xy,y)
+```
+
+```julia; term=true
+using StaticArrays
+xx = @MMatrix zeros(3,3)
+xy = @MVector zeros(3,3)
+@benchmark ARGridBootstrap.xx_xy!(xx,xy,y)
+```
+
+
 
 EXERCISE: Read [the Performance Tips section of Julia
 Manual](https://docs.julialang.org/en/v1/manual/performance-tips/) and
@@ -169,7 +222,8 @@ use mutable arrays (see ` @MMatrix` and ` @MVector`). Note that ` inv` of
 a small array will be substantially faster when using ` StaticArray.jl`
 instead of ` Base.Array`.
 
-## Fastest version
+
+## Fastest version (without SIMD)
 
 The fastest version of the code that I could write combines the ideas
 above. As above, it avoids allocating `x`. It also avoids allocating
@@ -187,21 +241,100 @@ using StaticArrays
 @code_string simulate_estimate_arp(y0,a,e)
 ```
 
-```julia; cache=true
+```julia; cache=true; term=true;
 estimator(y0=y0,e=est.e) = function(a)
   out = simulate_estimate_arp(y0,a,e)
   (out.θ[3], out.se[3])
 end
-@btime  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
+bench_sea=@benchmark  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
 ```
 
-On my computer, this version of the code is about 15 times faster than
+On my computer, this version of the code is about 10 times faster than
 the original.
+
+# SIMD
+
+To get full performance from modern CPUs, it is essential to use 
+Single Instruction, Multiple Data instructions (also known as vectorized CPU instructions) 
+in our code. These are special CPU instruction that allow applying an operation to multiple 
+numbers at once. The LLVM compiler that Julia uses tries to automatically use these 
+instructions when it is sure that it is safe to do so. 
+See ["Demystifying auto vectorization in Julia"](https://www.juliabloggers.com/demystifying-auto-vectorization-in-julia/) for more information.
+
+The compiler is not always successful in using SIMD instructions, so manual 
+usage of SIMD instructions can often help. 
+
+## LoopVectorization.jl
+
+As mentioned above, the Julia compiler tries to automactically use SIMD instructions when it 
+is safe to do so. SIMD instructions often change the order of operations, and since
+floating point math is not exactly commutative. The compiler tries to avoid reordering 
+operations, but this often prevents SIMD use. The macro `@simd` tells the compiler
+to not worry about reordering operations and insert SIMD instructions more aggresively. Still,
+there are some SIMD operations that the compiler will not insert automatically.
+
+The [LoopVectorization.jl](https://github.com/JuliaSIMD/LoopVectorization.jl) package defines
+a macro, `@turbo` that more aggresively inserts SIMD instructions. This can make a 
+large difference for some loops and broadcasts.
+
+```julia; term=true
+e = zeros(length(y)-1)
+θ = @MVector zeros(3)
+@benchmark ARGridBootstrap.resids!($e,$y,$θ)
+```
+
+```julia; term=true
+@benchmark ARGridBootstrap.resids_turbo!($e,$y,$θ)
+```
+
+We can also write SIMD instructions ourselves. The [SIMD.jl](https://github.com/eschnett/SIMD.jl) 
+package makes this somewhat accessible. For an example, `resids_simd` uses this package to
+match performance of the `@turbo` version. 
+```julia; term=true
+@benchmark ARGridBootstrap.resids_simd!($e,$y,$θ, Val(8))
+```
+Generally, if `@turbo` successfully inserted SIMD instructions 
+and made your code substantially faster, it will not be worth your effort to try to manually 
+write SIMD code. However, `@turbo` will not always be able to insert SIMD instructions.
+One way to check is through benchmarking. Another way is to inspect 
+`@code_llvm ARGridBootstrap.resids_turbo!(e,y,θ)`. Things like `fadd fast <4 x double>` are 
+SIMD instructions. The `<4 x double>` part is the key sign. In contrast, something like 
+`%26 = fsub double %24, %25` are scalar instructions. 
+
+The loops in `xx_xy!` are not automatically vectorized. Part of the issue is that
+`@turbo` cannot tell that `xx` and `xy` are arrays instead of scalars. If we rewrite 
+the code to use scalars, it would like get vectorized by `@turbo`. The `b_est_stride` 
+function does this. However, it is really inconvenient to rewrite array code as scalars.
+It may be more maintainable to keep the arrays and write SIMD instructions ourselves.
+```julia; term=true
+@benchmark ARGridBootstrap.xx_xy!($xx,$xy,$y)
+```
+```julia; term=true
+@benchmark ARGridBootstrap.xx_xy_simd!($xx,$xy,$y, Val(64))
+```
+This makes the code faster by a factor of more than 10. The `Val(N)` argument 
+controls the width of vectors that gets passed to SIMD instructions. 
+The value of `N` can affect execution by a factor of 5 or more. The
+best choice of `N` depends on your exact hardware and the code being executed. 
+
+To see how much this is worth it, let's benchmark the full bootstrap code, but using the SIMD 
+versions of `resids!` and `xx_xy!`
+```julia; term=true; cache=true
+b_est_simd = y->b_est_nox(y, xx_xy! =ARGridBootstrap.xx_xy_simd!, resids! =ARGridBootstrap.resids_simd!)
+benchsimd=@benchmark (b,t) = gridbootstrap(wrapper(b_est_simd), a->ar1_original(y0, a, est.e),
+                             αgrid, nboot);
+benchsimd
+```
+We have not improved total execution very much. The problem is that
+very little of the total time was spent in `xx_xy!` and `resids!` to begin with. 
+We did make those functions much faster, but they were such a small portion of 
+total execution time, that it is not noticeable. We should focus our efforts on 
+`ar1_original` if we want to improve. 
 
 
 # Multi-threading
 
-Modern computers almost all have multiple cores. We can divide the
+Current computers almost all have multiple cores. We can divide the
 time it takes our code by up to the number of cores we have (but
 usually less) by writing multi-threaded code. Multi-threaded code
 performs multiple tasks at once with shared memory. Before you begin
@@ -260,8 +393,8 @@ end;
 The execution times are nearly identical on my computer. The reason is
 that the computation is dominated by the creation of ` X` and
 multiplying ` X'*X` and ` X'*y`. These operations are already
-multi-threaded in the BLAS version I have installed. It is possible
-first calling ` using LinearAlgebra; BLAS.set_num_threads(1)` would
+multi-threaded in the BLAS library being used. It is possible
+that first calling ` using LinearAlgebra; BLAS.set_num_threads(1)` would
 improve the performance of the multi-threaded bootstrap.
 
 
