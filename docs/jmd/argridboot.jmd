@@ -20,6 +20,10 @@ This document was created using Weave.jl. The code is available in
 document generates both static webpages and associated (jupyter
 notebook)[argridboot.ipynb].
 
+Note that this document was originally written using an older version
+of Julia. Updates to Julia have changed some of the performance
+comparisons, and the text has not been revised to reflect these changes.
+
 # Introduction
 
 Today we will look into some methods to improve the speed of our
@@ -37,8 +41,6 @@ Also, read Rackauckas's notes on ["Optimizing Serial Code."](https://mitmath.git
 As a motivating example we will look at the gridded bootstrap of
 Hansen (1999)[@hansen99].
 
-<!-- FIXME: DESCRIPTION.  -->
-
 Gauss, Matlab, and R code implementing Hansen's method is available on
 [Hansen's
 website](https://www.ssc.wisc.edu/~bhansen/progs/restat_99.html). The
@@ -48,22 +50,28 @@ this code will not necessarily follow best practices for Julia.
 
 ```julia; echo=false; results="hidden"
 using ARGridBootstrap, CodeTracking
+function code_md(s)
+  println("```julia\n"*s*"\n```\n")
+end
 ```
 
-```julia;
+```julia; results="raw"
 T = 200
 e = randn(T)
 y0 = 0
 a = 0.9
-@code_string b_est_original(e)
+s = @code_string b_est_original(e)
+code_md(s)
 ```
 
-```julia;
-@code_string ar1_original(y0,a,e)
+```julia; results="raw"
+s=@code_string ar1_original(y0,a,e)
+code_md(s)
 ```
 
-```julia;
-@code_string gridbootstrap(b_est_original, a->a, 0.5:0.1:1, 99)
+```julia; results="raw"
+ s = @code_string gridbootstrap(b_est_original, a->a, 0.5:0.1:1, 99)
+code_md(s)
 ```
 
 ## Improving performance
@@ -73,7 +81,7 @@ with only 50 grid points and 199 bootstrap replications. In real use,
 you would want more like 999 bootstrap replications or more, and perhaps more
 grid points.
 
-```julia; cache=true
+```julia;
 # simulate some data
 using Random, BenchmarkTools, Profile
 T = 200
@@ -95,11 +103,18 @@ end
 To make code faster, we should begin by profiling.
 
 ```julia; term=true; cache=true
+using Profile
 Profile.clear();
 Profile.init(n=10^7,delay=0.0001);
 @profile (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
                                αgrid, 999);
 Profile.print(noisefloor=2.0)
+```
+
+```julia
+using ProfileView
+@profview (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+                               αgrid, 999);
 ```
 
 Profile.jl works very simply. Every 0.0001 seconds, the line of code
@@ -112,12 +127,12 @@ almost all of these occurred within `inv`.  If we want the
 code to be faster, we should focus on these lines.  Calling both `inv`
 and `\` is redundant; we should combine these computations.
 
-```julia; output_as_code=true; output_eval=false
-@code_string b_est_mldivide(y)
+```julia; results="raw"
+s = @code_string b_est_mldivide(y)
+code_md(s)
 ```
 
 ```julia; term=true; cache=true
-
 @btime (b,t) = gridbootstrap(wrapper(b_est_mldivide), a->ar1_original(y0, a, est.e),
                              αgrid, nboot);
 ```
@@ -137,8 +152,9 @@ creating ` x`. Allocating and copying memory is relatively slow. The
 creation of ` x` involves both. We can avoid creating `x` by just
 accumulating $X'y$ and $X'X$ in a loop.
 
-```julia; output_as_code=true; output_eval=false
-@code_string b_est_nox(y)
+```julia; results="raw"
+s = @code_string b_est_nox(y)
+code_md(s)
 ```
 
 ```julia; cache=true
@@ -183,8 +199,9 @@ ends up being faster than `\`.
 using StaticArrays
 ```
 
-```julia; output_as_code=true; output_eval=false
-@code_string simulate_estimate_arp(y0,a,e)
+```julia; results="raw"
+s = @code_string simulate_estimate_arp(y0,a,e)
+code_md(s)
 ```
 
 ```julia; cache=true
@@ -197,6 +214,18 @@ end
 
 On my computer, this version of the code is about 15 times faster than
 the original.
+
+
+## LoopVectorization
+
+Here's a version that adds some `@turbo` macros from LoopVectorization.jl.
+```julia; cache=true
+estimator(y0=y0,e=est.e) = function(a)
+  out = simulate_estimate_arp_lv(y0,a,e)
+  (out.θ[3], out.se[3])
+end
+@btime  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
+```
 
 
 # Multi-threading
@@ -229,9 +258,10 @@ Some care must be taken with random number generators and
 multi-threaded code. See
 [the Julia docs](https://docs.julialang.org/en/v1/manual/parallel-computing/index.html#Side-effects-and-mutable-function-arguments-1) for more information.
 
-```julia; output_as_code=true; output_eval=false
+```julia; results="raw"
 rng = rngarray(nthreads())
-@code_string gridbootstrap_threaded(wrapper(b_est_original), (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),αgrid, 2, rng=rng)
+s=@code_string gridbootstrap_threaded(wrapper(b_est_original), (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),αgrid, 2, rng=rng)
+code_md(s)
 ```
 
 Now, let's try multi-threading the original version of the code.
@@ -239,7 +269,7 @@ Now, let's try multi-threading the original version of the code.
 ```julia; cache=true
 using Base.Threads
 println("Single thread, original version")
-@time begin # this is so slow that using btime is not so necessary
+@btime begin # this is so slow that using btime is not so necessary
   (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
                         αgrid, 199);
 end;
@@ -250,7 +280,7 @@ rng = rngarray(nthreads())
                                (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),
                                αgrid, 2, rng=rng);
 println("$(nthreads()) threads, original version")
-@time begin # this is so slow that using btime is not so necessary
+@btime begin # this is so slow that using btime is not so necessary
   (b,t) = gridbootstrap_threaded(wrapper(b_est_original),
                                  (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),
                                  αgrid, 199, rng=rng);
@@ -349,6 +379,7 @@ function cuarraydemo(N,M)
   @time c2=bar(A,b);
   @time c2=bar(A,b);
 end
+
 ```
 
 ```julia; term=true
@@ -508,12 +539,14 @@ threads you execute.[^caveat]
 
 ## GPU grid bootstrap
 
-```julia; output_as_code=true; output_eval=false
-@code_string argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64)
+```julia; results="raw"
+s = @code_string argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64)
+code_md(s)
 ```
 
-```julia; output_as_code=true; output_eval=false
-@code_string ARGridBootstrap.argridkernel!(1.,1., 1., Val(1), 1., 1. , 1.)
+```julia; results="raw"
+s = @code_string ARGridBootstrap.argridkernel!(1.,1., 1., Val(1), 1., 1. , 1.)
+code_md(s)
 ```
 
 ```julia; cache=true

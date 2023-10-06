@@ -21,7 +21,7 @@ For each α ∈ grid, repeatedly simulate data with parameter α and then comput
 - `t` t-stat  for each grid value and simulated dataset
 """
 function gridbootstrap(estimator, simulator,
-                       grid::AbstractVector,
+                       grid,
                        nboot=199)
   g = length(grid)
   bootq = zeros(nboot, g)

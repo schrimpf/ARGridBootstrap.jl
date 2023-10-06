@@ -5,6 +5,11 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CodeTracking = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterMarkdown = "997ab1e6-3595-5248-9280-8efb232c3433"
+Franklin = "713c75ef-9fc9-4b05-94a9-213340da978e"
+ProfileView = "c46f51b8-102a-5cf2-8d2c-8597cb0e0da7"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
+
+[extras]
+CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
