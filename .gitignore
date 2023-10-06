@@ -9,3 +9,4 @@
 LocalPreferences.toml
 *.el
 \#*\#
+/test/Manifest.toml
