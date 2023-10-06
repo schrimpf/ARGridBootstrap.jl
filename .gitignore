@@ -1,3 +1,11 @@
 .DS_Store
 /Manifest.toml
 /dev/
+/docs/site
+/docs/weavecache
+/docs/auto
+/docs/build
+*~
+LocalPreferences.toml
+*.el
+\#*\#
