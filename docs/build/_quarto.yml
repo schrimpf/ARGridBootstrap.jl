@@ -1,0 +1,26 @@
+project:
+  type: website
+  render:
+    - "*.md"
+
+website:
+  title: "ARGridBootstrap"
+  navbar:
+    left:
+      - href: index.md
+        text: Package Documentation
+      - href: argridboot.md
+        text: Coding for Performance
+      - href: threads.md
+        text: Multi-Threading
+      - href: gpu.md
+        text: Using GPUs
+      - href: license.md
+        text: License
+
+format:
+  html:
+    theme: journal
+    toc: true
+    #css: styles.css
+

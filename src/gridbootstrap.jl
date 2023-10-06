@@ -57,8 +57,7 @@ For each α ∈ grid, repeatedly simulate data with parameter α and then comput
     that can be used to estimate α
 - `grid` grid of parameter values. For each value, `nboot`
     datasets will be simulated and estimates computed.
-- `nboot`
-- `rng` array of RNG states of length = number of threads
+- `nboot` number of bootstrap simulations per grid point
 
 # Returns
 - `ba` hatα - α for each grid value and simulated dataset
@@ -66,17 +65,17 @@ For each α ∈ grid, repeatedly simulate data with parameter α and then comput
 """
 function gridbootstrap_threaded(estimator, simulator,
                                 grid::AbstractVector,
-                                nboot=199; rng=rngarray(nthreads()))
+                                nboot=199)
   g = length(grid)
   bootq = zeros(nboot, g)
   ba    = zeros(nboot, g)
   bootse = zeros(nboot,g)
   #@threads for ak in 1:g
   #  for j in 1:nboot
-  @threads for idx ∈ CartesianIndices(ba)
-    j =  idx[1]
-    ak = idx[2]
-    (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak],rng[threadid()]))
+  @threads for ind ∈ CartesianIndices(ba)
+    j = ind[1]
+    ak = ind[2]
+    (bootq[j,ak], bootse[j,ak]) = estimator(simulator(grid[ak],Random.TaskLocalRNG()))
     ba[j,ak] = bootq[j,ak] - grid[ak]
   end
   ts = ba./bootse

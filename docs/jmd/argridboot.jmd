@@ -1,28 +1,11 @@
 ---
 title       : "Coding for Performance"
-subtitle    :
+subtitle    : "1: Optimizing Single Threaded Code"
 author      : Paul Schrimpf
 date        : `j using Dates; print(Dates.today())`
 bibliography: "perf.bib"
 ---
 
-[![](https://i.creativecommons.org/l/by-sa/4.0/88x31.png)](http://creativecommons.org/licenses/by-sa/4.0/)
-
-This work is licensed under a [Creative Commons Attribution-ShareAlike
-4.0 International
-License](http://creativecommons.org/licenses/by-sa/4.0/)
-
-
-### About this document {-}
-
-This document was created using Weave.jl. The code is available in
-[on github](https://github.com/schrimpf/ARGridBootstrap.jl). The same
-document generates both static webpages and associated (jupyter
-notebook)[argridboot.ipynb].
-
-Note that this document was originally written using an older version
-of Julia. Updates to Julia have changed some of the performance
-comparisons, and the text has not been revised to reflect these changes.
 
 # Introduction
 
@@ -74,7 +57,7 @@ code_md(s)
 code_md(s)
 ```
 
-## Improving performance
+# Improving performance
 
 Now, let's run this code and time it. Note that we are running this
 with only 50 grid points and 199 bootstrap replications. In real use,
@@ -83,7 +66,7 @@ grid points.
 
 ```julia;
 # simulate some data
-using Random, BenchmarkTools, Profile
+using Random, BenchmarkTools, Profile, ProfileCanvas
 T = 200
 e = randn(T)
 y0 = 0
@@ -96,62 +79,82 @@ wrapper(b_est) = function(x)
   out=b_est(x)
   (out.θ[3], out.se[3])
 end
+```
+## Initial Benchmark and Profile
+
+```julia; cache=true
 benchorig=@benchmark (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
-                             αgrid, nboot);
+                             αgrid, nboot)
 ```
 
 To make code faster, we should begin by profiling.
 
-```julia; term=true; cache=true
-using Profile
+```julia
+# only to make profile results show nicely in generated html
+# for interactive use, just use @profview in place of @profile
+function profilehtmlstring() 
+  buf = IOBuffer()
+  show(buf, MIME("text/html"), ProfileCanvas.view(Profile.fetch()))
+  s=String(take!(buf))
+  println("\n\n"*s*"\n")
+end
+```
+
+```julia; cache=true; results="raw"
+using Profile, ProfileCanvas
 Profile.clear();
 Profile.init(n=10^7,delay=0.0001);
-@profview (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
-                               αgrid, 999);
-Profile.print(noisefloor=2.0)
+@profile (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+                               αgrid, 999)
+profilehtmlstring()
 ```
 
-```julia
-using ProfileView
-@profview (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
-                               αgrid, 999);
-```
+The profiler works very simply. Every 0.0001 seconds, the line of code
+being executed gets recorded. There are then various tools for printing and visualizing the results. The `@profview` macro shows a 
+[flame graph](https://queue.acm.org/detail.cfm?id=2927301). The default view might be a bit strange. The base of the flame graph often 
+includes Julia's repl and various other things that can be ignored. If you click on the graph, it will zoom in. You can use mouse wheel 
+up to zoom back out.  
 
-Profile.jl works very simply. Every 0.0001 seconds, the line of code
-being executed gets recorded. `Profile.print` shows the count of how
-many times each line of code got recorded. 
+::: {.callout-tip}
+In VSCode, you can just use `@profview` in place of `@profile` and the profile flamegraph will open in a panel within VSCode.
+:::
 
-!!! warning
-    The following was true on an older version of Julia, but now there are no 
-    gains from eliminating `inv`.
 
-    From the output (these
-    numbers can vary quite a bit from run to run), we see
-    there were 640 ticks in ` gridbootstrap_original` (exact numbers will
-    vary on each execution, but relative ones should be similar), and
-    almost all of these occurred within `inv`.  If we want the
-    code to be faster, we should focus on these lines.  Calling both `inv`
-    and `\` is redundant; we should combine these computations.
+## Removing Redudant Operations
+
+::: {.callout-warning}
+The following was true on an older version of Julia, but now there are no 
+gains from eliminating `inv`.
+:::
+
+From the output (these
+numbers can vary quite a bit from run to run), we see
+there were 640 ticks in ` gridbootstrap_original` (exact numbers will
+vary on each execution, but relative ones should be similar), and
+almost all of these occurred within `inv`.  If we want the
+code to be faster, we should focus on these lines.  Calling both `inv`
+and `\` is redundant; we should combine these computations.
+
 
 ```julia; results="raw"
 s = @code_string b_est_mldivide(y)
 code_md(s)
 ```
 
-```julia; term=true; cache=true
-
+```julia; cache=true
 benchml=@benchmark (b,t) = gridbootstrap(wrapper(b_est_mldivide), a->ar1_original(y0, a, est.e),
-                             αgrid, nboot);
+                             αgrid, nboot)
 ```
 ~~From this, we get a speedup by about a factor of 4 on my computer.~~ 
 This used to make a big difference, but no longer seems to matter.
 
+## Reducing Allocations
 
-```julia; term=true; cache=true
-Profile.clear();
+```julia; cache=true; results="raw"
+Profile.clear()
 @profile (b,t) = gridbootstrap(wrapper(b_est_mldivide), a->ar1_original(y0, a, est.e),
-                               αgrid, 999);
-Profile.print(noisefloor=2.0)
+                               αgrid, 999)
+profilehtmlstring()                            
 ```
 
 Now, the most time consuming parts of the code are, unsurprisingly,
@@ -159,46 +162,47 @@ the call to ` \`, and, perhaps surprisingly, ` hcat` from
 creating ` x`. Allocating and copying memory is relatively slow. The
 creation of ` x` involves both. 
 
+### Caching Intermediate Arrays
+
 One option is to preallocate an arrays and reuse them. The struct `bEstCache` does this.
-```julia; term=true; cache=true
+```julia; cache=true
 b_est_cache = ARGridBootstrap.bEstCached(T-1)
 benchcache=@benchmark gridbootstrap(wrapper(b_est_cache), a->ar1_original(y0, a, est.e), 
-                                    αgrid, nboot);
+                                    αgrid, nboot)
 ```
 
-```julia
+```julia; cache=true; results="raw"
+Profile.clear()
 @profview (b,t) = gridbootstrap(wrapper(b_est_cache), a->ar1_original(y0, a, est.e),
-                               αgrid, 999);
+                               αgrid, 999)
+profilehtmlstring()
 ```
 
+### Eliminating Intermediate Arrays
 Better yet, we can avoid creating `x` by just accumulating $X'y$ and $X'X$ in a loop.
 
 ```julia; results="raw"
 s = @code_string b_est_nox(y)
 code_md(s)
 ```
+
 We put the two main loops into separate functions both for organization and to 
 allow us to focus on optimizing these loops below.
 
-```julia; output_as_code=true; output_eval=false
-@code_string ARGridBootstrap.xx_xy!(zeros(3,3),zeros(3),y)
+```julia; results="raw"
+s=@code_string ARGridBootstrap.xx_xy!(zeros(3,3),zeros(3),y)
+code_md(s)
 ```
 
-```julia; output_as_code=true; output_eval=false
-@code_string ARGridBootstrap.resids!(zeros(length(y)-1),y,zeros(3))
+```julia; results="raw"
+s=@code_string ARGridBootstrap.resids!(zeros(length(y)-1),y,zeros(3))
+code_md(s)
 ```
 
 
-```julia; term=true; cache=true
+```julia; cache=true
 benchnox=@benchmark (b,t) = gridbootstrap(wrapper(b_est_nox), a->ar1_original(y0, a, est.e),
-                             αgrid, nboot);
-benchnox
-```
-```julia; term=true; cache=true
-Profile.clear();
-@profview (b,t) = gridbootstrap(wrapper(b_est_simd), a->ar1_original(y0, a, est.e),
-                             αgrid, 4999);
-Profile.print(noisefloor=2.0)
+                             αgrid, nboot)
 ```
 
 We have further cut the time by a factor of two. However, this performance optimization has been costly in terms of readability and extensibility
@@ -207,69 +211,18 @@ of our code. If we wanted to fit an AR(p) model instead of AR(1), the
 ` b_est_mldivide` version.
 
 We additionally gained some performance by using mutable `StaticArrays` to hold $X'X$ and $X'y$. 
-```julia; term=true
+```julia; cache=true
 xx = zeros(3,3)
-xy = zeros(3,3)
+xy = zeros(3)
 @benchmark ARGridBootstrap.xx_xy!(xx,xy,y)
 ```
 
-```julia; term=true
+```julia; cache=true
 using StaticArrays
 xx = @MMatrix zeros(3,3)
-xy = @MVector zeros(3,3)
+xy = @MVector zeros(3)
 @benchmark ARGridBootstrap.xx_xy!(xx,xy,y)
 ```
-
-
-
-EXERCISE: Read [the Performance Tips section of Julia
-Manual](https://docs.julialang.org/en/v1/manual/performance-tips/) and
-incorporate some of these tips into the above code.
-
-EXERCISE: write a version of ` b_est` that avoids allocating the full
-$T \times 3$ $X$ matrix, but can still be generalized to an AR(p) model.
-
-EXERCISE: examine how the relative performance of these versions of `
-b_est` vary with ` T`, ` nboot`, and the number of grid points.
-
-EXERCISE: the Julia package ` StaticArrays.jl` provides an alternative
-array implementation that is often much faster than ` Base.Array`. Try
-implementing ` b_est` using ` StaticArrays.jl`. You will likely need to
-use mutable arrays (see ` @MMatrix` and ` @MVector`). Note that ` inv` of
-a small array will be substantially faster when using ` StaticArray.jl`
-instead of ` Base.Array`.
-
-
-## Fastest version (without SIMD)
-
-The fastest version of the code that I could write combines the ideas
-above. As above, it avoids allocating `x`. It also avoids allocating
-`e` by combining the simulation and estimation into a single
-loop. Finally, it uses mutable static arrays to ensure that operations
-on `xx` and `xy` have as little overhead as possible. Note that for
-small StaticArrays, `inv` will call a specialized, fast version, and
-ends up being faster than `\`.
-
-```julia
-using StaticArrays
-```
-
-```julia; results="raw"
-s = @code_string simulate_estimate_arp(y0,a,e)
-code_md(s)
-```
-
-```julia; cache=true; term=true;
-estimator(y0=y0,e=est.e) = function(a)
-  out = simulate_estimate_arp(y0,a,e)
-  (out.θ[3], out.se[3])
-end
-bench_sea=@benchmark  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
-```
-
-On my computer, this version of the code is about 10 times faster than
-the original.
-
 # SIMD
 
 To get full performance from modern CPUs, it is essential to use 
@@ -295,22 +248,24 @@ The [LoopVectorization.jl](https://github.com/JuliaSIMD/LoopVectorization.jl) pa
 a macro, `@turbo` that more aggresively inserts SIMD instructions. This can make a 
 large difference for some loops and broadcasts.
 
-```julia; term=true
+```julia; cache=true
 e = zeros(length(y)-1)
 θ = @MVector zeros(3)
 @benchmark ARGridBootstrap.resids!($e,$y,$θ)
 ```
 
-```julia; term=true
+```julia; cache=true
 @benchmark ARGridBootstrap.resids_turbo!($e,$y,$θ)
 ```
 
 We can also write SIMD instructions ourselves. The [SIMD.jl](https://github.com/eschnett/SIMD.jl) 
 package makes this somewhat accessible. For an example, `resids_simd` uses this package to
 match performance of the `@turbo` version. 
-```julia; term=true
+
+```julia; cache=true
 @benchmark ARGridBootstrap.resids_simd!($e,$y,$θ, Val(8))
 ```
+
 Generally, if `@turbo` successfully inserted SIMD instructions 
 and made your code substantially faster, it will not be worth your effort to try to manually 
 write SIMD code. However, `@turbo` will not always be able to insert SIMD instructions.
@@ -320,16 +275,19 @@ SIMD instructions. The `<4 x double>` part is the key sign. In contrast, somethi
 `%26 = fsub double %24, %25` are scalar instructions. 
 
 The loops in `xx_xy!` are not automatically vectorized. Part of the issue is that
-`@turbo` cannot tell that `xx` and `xy` are arrays instead of scalars. If we rewrite 
+`@turbo` cannot tell that `xx` and `xy` are statically allocated. If we rewrite 
 the code to use scalars, it would like get vectorized by `@turbo`. The `b_est_stride` 
 function does this. However, it is really inconvenient to rewrite array code as scalars.
 It may be more maintainable to keep the arrays and write SIMD instructions ourselves.
-```julia; term=true
+
+```julia;  cache=true
 @benchmark ARGridBootstrap.xx_xy!($xx,$xy,$y)
 ```
-```julia; term=true
-@benchmark ARGridBootstrap.xx_xy_simd!($xx,$xy,$y, Val(64))
+
+```julia;  cache=true
+@benchmark ARGridBootstrap.xx_xy_simd!($xx,$xy,$y, Val(16))
 ```
+
 This makes the code faster by a factor of more than 10. The `Val(N)` argument 
 controls the width of vectors that gets passed to SIMD instructions. 
 The value of `N` can affect execution by a factor of 5 or more. The
@@ -337,354 +295,73 @@ best choice of `N` depends on your exact hardware and the code being executed.
 
 To see how much this is worth it, let's benchmark the full bootstrap code, but using the SIMD 
 versions of `resids!` and `xx_xy!`
-```julia; term=true; cache=true
+
+```julia;  cache=true
 b_est_simd = y->b_est_nox(y, xx_xy! =ARGridBootstrap.xx_xy_simd!, resids! =ARGridBootstrap.resids_simd!)
 benchsimd=@benchmark (b,t) = gridbootstrap(wrapper(b_est_simd), a->ar1_original(y0, a, est.e),
-                             αgrid, nboot);
-benchsimd
+                             αgrid, nboot)
 ```
+
 We have not improved total execution very much. The problem is that
 very little of the total time was spent in `xx_xy!` and `resids!` to begin with. 
 We did make those functions much faster, but they were such a small portion of 
 total execution time, that it is not noticeable. We should focus our efforts on 
 `ar1_original` if we want to improve. 
 
+# Fastest Version 
 
-# Multi-threading
+The fastest version of the code that I could write combines the ideas
+above. As above, it avoids allocating `x`. It also avoids allocating
+`e` by combining the simulation and estimation into a single
+loop. Finally, it uses mutable static arrays to ensure that operations
+on `xx` and `xy` have as little overhead as possible. Note that for
+small StaticArrays, `inv` will call a specialized, fast version, and
+ends up being faster than `\`.
 
-Current computers almost all have multiple cores. We can divide the
-time it takes our code by up to the number of cores we have (but
-usually less) by writing multi-threaded code. Multi-threaded code
-performs multiple tasks at once with shared memory. Before you begin
-writing multi-threaded code, you should make sure your code isn't
-already using all available cores. It is likely that the BLAS and
-Lapack libraries that Julia uses for linear algebra are
-multi-threaded. If you code is dominated by large matrix operations,
-it may already be using all available cores. In that case, there will
-not be much benefit from additional multi-threading.
-
-Read ["The Basics of Single Node Parallel Computing"](https://mitmath.github.io/18337/lecture5/parallelism_overview)
-Rackauckus (2019) [@rackauckas2019b] .
-
-Once we have decided that the code might benefit from multi-threading,
-we should look for loops (or other independent tasks) that can be
-multi-threaded. There is some overhead from creating threads and
-communicating among them. Multi-threading generally works best for
-loops where each iteration involves substantial work, and each
-iteration is independent of all others. The loops over grid points and
-bootstrap repetitions in ` gridbootstrap` are perfect candidates. We
-don't care about the order in which these loops get executed. The
-result of each iteration is (mostly) independent of all others.
-
-Some care must be taken with random number generators and
-multi-threaded code. See
-[the Julia docs](https://docs.julialang.org/en/v1/manual/parallel-computing/index.html#Side-effects-and-mutable-function-arguments-1) for more information.
+```julia
+using StaticArrays
+```
 
 ```julia; results="raw"
-rng = rngarray(nthreads())
-s=@code_string gridbootstrap_threaded(wrapper(b_est_original), (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),αgrid, 2, rng=rng)
+s = @code_string simulate_estimate_arp(y0,a,e)
 code_md(s)
 ```
 
-Now, let's try multi-threading the original version of the code.
-
-```julia; cache=true
-using Base.Threads
-println("Single thread, original version")
-@btime begin # this is so slow that using btime is not so necessary
-  (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
-                        αgrid, 199);
-end;
-
-rng = rngarray(nthreads())
-# make sure the threaded version is compiled before timing it
-(b,t) = gridbootstrap_threaded(wrapper(b_est_original),
-                               (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),
-                               αgrid, 2, rng=rng);
-println("$(nthreads()) threads, original version")
-@btime begin # this is so slow that using btime is not so necessary
-  (b,t) = gridbootstrap_threaded(wrapper(b_est_original),
-                                 (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),
-                                 αgrid, 199, rng=rng);
-end;
-```
-
-The execution times are nearly identical on my computer. The reason is
-that the computation is dominated by the creation of ` X` and
-multiplying ` X'*X` and ` X'*y`. These operations are already
-multi-threaded in the BLAS library being used. It is possible
-that first calling ` using LinearAlgebra; BLAS.set_num_threads(1)` would
-improve the performance of the multi-threaded bootstrap.
-
-
-```julia; cache=true
-println("Single thread, fastest version")
-@btime  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot);
-
-println("$(nthreads()) threads, fastest version")
-estimator_threaded(y0=y0,e=est.e)=function(foo)
-  (a, rng) = foo
-  out=simulate_estimate_arp(y0,a,e,Val(1),()->rand(rng,1:length(e)))
+```julia; cache=true; 
+estimator(y0=y0,e=est.e) = function(a)
+  out = simulate_estimate_arp(y0,a,e)
   (out.θ[3], out.se[3])
 end
-rng = rngarray(nthreads())
-@btime begin
-  (bs, ts) = gridbootstrap_threaded(estimator_threaded(),
-                                    (a,rng)->(a,rng), αgrid,
-                                    nboot, rng=rng)
-end;
+bench_sea=@benchmark  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot)
 ```
 
-Notice how the speedup from using multiple threads is far less than
-number of cores. On my computer, the threaded version of the code is
-about 4 times faster, even though my computer has 40 "cores" (or 20
-physical cores. My computer has 2 processors with 10 cores each, and each
-core is hyperthreaded into 2. The OS sees 40 processors, but half of
-them are sharing substantial resources). A speedup far less than the
-number of cores is typical. Creating and managing multiple threads
-creates some overhead. Moreover, cores must share various resources;
-most notably RAM and some cache.
+On my computer, this version of the code is about 10 times faster than
+the original.
 
-# GPU
+For further gains, we will explore [multi-threading](threads.md) and using a [GPU](gpu.md) in parts 2 and 3. 
 
-Compared to CPUs, GPUs have a huge number of cores operating at a
-slower clockrate. GPUs also have their own separate memory, which they
-can access faster than CPUs access RAM.  These characteristics make
-GPUs well-suited to large parallel computations. Unfortunately, fully
-utilizing GPUs can require substantial changes to your code.
+# Exercises
 
-See ["The Different Flavors of
-Parallelism"](https://mitmath.github.io/18337/lecture6/styles_of_parallelism)
-Rackauckas (2019) [@rackauckas2019c] for more information comparing
-GPUs to various forms of parallelism on CPUs.
+Some of these have been incorporated into the sections above. 
 
-## Array interface
+1. Read [the Performance Tips section of Julia
+Manual](https://docs.julialang.org/en/v1/manual/performance-tips/) and
+incorporate some of these tips into the above code.
 
-The easiest way to use a GPU in Julia is through a high level array
-interface. `ArrayFire.jl`, `oneAPI.jl`, and `CUDA.jl` each offer such
-interfaces. We will focus on `CUDA.jl` in these
-notes. `CUDA.jl` relies on Nvidia's CUDA platform, so it only
-works with Nvidia GPUs. Nvidia tends to dominate GPGPU, and the GPUs
-available on cedar.computecanada.ca and in my desktop are Nvidia.
+2. Write a version of ` b_est` that avoids allocating the full
+$T \times 3$ $X$ matrix, but can still be generalized to an AR(p) model.
 
-Using CUDA.CuArray is simple, but has some limitations. You create arrays
-on the GPU using ` CuArray`. Any array level operation on these will
-then be performed efficiently on the GPU. This includes broadcast
-functions with ` .` and matrix multiplies.
+3. Examine how the relative performance of these versions of `
+b_est` vary with ` T`, ` nboot`, and the number of grid points.
 
-```julia
-using CUDA, Random, BenchmarkTools
+4. The Julia package ` StaticArrays.jl` provides an alternative
+array implementation that is often much faster than ` Base.Array`. Try
+implementing ` b_est` using ` StaticArrays.jl`. You will likely need to
+use mutable arrays (see ` @MMatrix` and ` @MVector`). Note that ` inv` of
+a small array will be substantially faster when using ` StaticArray.jl`
+instead of ` Base.Array`.
 
+5. The fastest version of the code does not yet use SIMD instructions. 
+Try to improve its performance by using SIMD. 
+My [SIMDscan](https://github.com/schrimpf/SIMDscan.jl/) package might be useful.
 
-N = 1000
-M = 1000
-
-function cuarraydemo(N,M)
-  # wrapped in a  function so that the CuArrays are freed
-  # otherwise we will run out GPU memory later
-  A = randn(N,M);
-  b = randn(M,2);
-  println("Time on CPU")
-  function foo(A,b)
-    (A.^2)*b
-  end
-  @time c=foo(A,b);
-  @time c=foo(A,b);
-  A_gpu = CuArray(A); # copy of A in GPU memory
-  b_gpu = CuArray(b);
-  println("Computations on the GPU are fast")
-  # @btime does not work inside a function
-  @time CUDA.@sync c_gpu=foo(A_gpu,b_gpu);
-  @time CUDA.@sync c_gpu=foo(A_gpu,b_gpu);
-  println("But copying to and from GPU memory is not")
-  bar(A,b) =Array(foo(CuArray(A), CuArray(b)))
-  @time c2=bar(A,b);
-  @time c2=bar(A,b);
-end
-
-```
-
-```julia; term=true
-cuarraydemo(N,M);
-```
-
-`CuArray`s also allow indexing, so you could use loops and other
-constructs. However, this will not be fast. ` CuArray`s by itself will be
-a good method to utilize GPUs when the code is dominated by operations
-on large arrays.
-
-Unfortunately, the fastest version of our grid bootstrap code does not
-fit that description. A loop seems needed to generate $y$ due to the
-recursiveness of the AR(1) model. The fastest version of the code
-above involves many operations on small 3x3 arrays.
-
-EXERCISE: modify ` b_est_original` or ` b_est_mldivide` to utilize
-` CuArray`s. The approach taken in those functions involves some
-moderate sized matrices, so it may benefit from ` CuArray`s.
-
-
-## Custom CUDA Kernels
-
-To parallelize the code above on a GPU, we will have to use a lower
-level interface to the GPU. To explain how it works, we will begin
-with a simple example that just squares all the elements of an array.
-
-Disclaimer: my understanding of CUDA and the inner workings of GPUs is
-far from complete. Some of the details in this section might be
-inaccurate.
-
-A typical workflow with CUDA consists of
-
-1. Allocate GPU memory and copying arrays into it with ` CuArray`.
-2. Decide how many threads and what configuration of threads to
-   launch.
-3. Each thread does some computation by running a "kernel" function.
-4. Copy result from GPU memory to CPU memory.
-
-In the code below, 1 happens in `cuarray_cudanative_compare`, 2 happens in the
-` square!` function, ` square_kernel!` is the kernel in 3, and 4 is just
-not done.
-
-### Threads and blocks
-
-CUDA organizes GPU threads into blocks. I believe that the threads in
-a block all execute concurrently. Threads in the same block share some
-memory and registers. All current Nvidia GPUs have a maximum number of
-threads per block of 1024. Note that threads in the same block share
-registers[^reg], and different kernel functions will use different
-numbers of registers at once, so depending on the kernel function, you
-might be limited to fewer than 1024 threads per block. The number of
-registers available per block depends on your GPU. You can check your
-GPU characteristics by compiling and running the C++ program in
-`$CUDA_PATH/samples/1_Utilities/deviceQuery/`. Alternatively, you can
-see this information in Julia by running the code below.
-
-```julia
-println("Maximum threads per block $(attribute(device(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK))")
-println("Maximum x blocks $(attribute(device(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X))")
-println("Maximum registers per block $(attribute(device(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_BLOCK))")
-```
-
-There is no simple way to predict how many registers a kernel function
-uses. It will depend both on the code you write and how the compiler
-optimizes the code. If you encounter cryptic error messages about CUDA
-resources unavailable, then try reducing the number of threads per
-block. Alternatively, you can limit the number of registers used by
-passing the `maxregs` argument to `@cuda`.
-
-You can execute more than 1024 threads by specifying a number of
-blocks. There is also a limit to the number of blocks, but it is
-rather large. In the code below, we set the number of blocks, so that
-` nblocks*nthreads >= length(A)`. Each thread then operates on a single
-element of ` A`. When the code is executed, each thread has a unique
-` threadIdx` and ` blockIdx` combination, and these are used to assign
-threads to elements of ` A`. The indices go from 1 to number of threads
-(or blocks). For convenience you can request threads and blocks to
-have up 3 dimensions, and there are ` threadIdx().y` and
-` threadIdx().z` for the additional dimensions.
-
-[^reg]: Processor registers are the fastest bits of memory on the
-    processor, and registers are where the actual addition,
-    multiplication, and other instructions are carried out.
-
-```julia
-function square!(A::CuArray)
-  n = length(A)
-  maxthreads = 1024
-  nthreads = min(maxthreads, n)
-  nblocks  = Int(ceil(n/nthreads))
-
-  @cuda threads=nthreads blocks=nblocks square_kernel!(A)
-
-  return A
-end
-
-function square_kernel!(A)
-  i = threadIdx().x + (blockIdx().x-1)*blockDim().x
-  if (i<=length(A))
-    @inbounds A[i] *= A[i]
-  end
-  return nothing # CUDA kernels must return nothing
-end
-
-function cuarray_cudanative_compare(A)
-  A_gpu = CuArray(A);
-  println("CUDAnative square!")
-  @time CUDA.@sync square!(A_gpu);
-  @time CUDA.@sync square!(A_gpu);
-
-  println("CuArray A*=A")
-  A_gpu = CuArray(A);
-  @time CUDA.@sync A_gpu .*= A_gpu;
-  @time CUDA.@sync A_gpu .*= A_gpu;
-  return nothing
-end
-```
-
-```julia; term=true
-cuarray_cudanative_compare(randn(N,M))
-```
-### Kernel Limitations
-
-CUDA kernel functions execute on the GPU and in GPU memory. Since GPU
-memory is allocated and managed differently than RAM, many Julia
-functions will not work in CUDA kernels. Most importantly, Julia
-functions that allocate dynamically sized arrays will not work. This
-means that even matrix multiplication like ` θ = ixx*xy` will fail (if
-`ixx` or `xy` are dynamically allocated) since it allocates an array
-for ` θ`. You can, however, have local scalars, tuples, and `
-StaticArrays` within a kernel function. The key difference is that the
-sizes of these types are known at compile time. If `ixx` and `xy` are
-`StaticArrays`, then you can do something like `θ = ixx*xy`. Since the
-compiler knows the size of `ixx` and `xy`, the compiler also know the
-size of `θ`. However, even with ` StaticArrays` you must be careful
-with operations that that create new StaticArrays (like matrix
-multiplies). These will cause problems if called repeatedly within a
-loop.[^loops]
-
-[^loops]: If you create StaticArrays inside a loop, they get allocated
-    to the GPU's "dynamic shared memory." I believe a new allocation
-    happens each loop iteration. This will be slow, and there is a
-    fairly small amount of dynamic shared memory, of which you will
-    soon run out.
-
-It is possible to dynamicaaly allocate GPU memory within a kernel
-function, but it requires using the low-level interface to CUDA in
-`CUDA.jl`. Moreoever, it is generally not a good idea to be
-dynamically allocating and freeing memory in each of the thousands of
-threads you execute.[^caveat]
-
-
-[^caveat]: There are situations where allocating shared memory is
-    needed and a good idea, but these require some advanced techniques
-    that we will not cover.
-
-## GPU grid bootstrap
-
-```julia; results="raw"
-s = @code_string argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64)
-code_md(s)
-```
-
-```julia; results="raw"
-s = @code_string ARGridBootstrap.argridkernel!(1.,1., 1., Val(1), 1., 1. , 1.)
-code_md(s)
-```
-
-```julia; cache=true
-@btime begin
-  grid = argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64);
-end;
-```
-
-Compared to the fastest CPU code above, the GPU version takes about
-1/20th the time of the single-threaded CPU code, and about 1/5th the
-time of the 30-threaded CPU code. Considering that the two CPUs in my
-workstation together cost about 6 times more than the single GPU, the
-performance of the GPU code is quite good. Also, we carefully profiled
-and tuned the CPU code, but not the GPU code (although the GPU code
-does use all algorithmic improvements of the fastest CPU code). Profiling GPU kernel
-code requires using Nvidia's profiler, see
-[CUDA.jl
-documentation](https://cuda.juliagpu.org/stable/development/profiling/)
-for information.

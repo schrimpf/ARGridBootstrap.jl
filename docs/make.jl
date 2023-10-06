@@ -10,7 +10,7 @@ if runweave
     builddir=joinpath(dirname(Base.pathof(ARGridBootstrap)),"..","docs","build")
     mkpath(builddir)
     cd(builddir)
-     jmdfiles = filter(x->occursin(r".jmd$",x), readdir(joinpath("..","jmd")))
+    jmdfiles = filter(x->occursin(r".jmd$",x), readdir(joinpath("..","jmd")))
     for f in jmdfiles
       src = joinpath("..","jmd",f)
       target = joinpath("..","build",replace(f, r"jmd$"=>s"md"))
@@ -25,7 +25,9 @@ if runweave
       if (runnotebook && stat(src).mtime > stat(target).mtime)
           notebook(src,out_path=joinpath("..","build"),
                    nbconvert_options="--allow-errors")
-      end
+      elseif (stat(src).mtime > stat(target).mtime)
+        convert_doc(src, joinpath("..","build",replace(f, "jmd" => "ipynb")))
+      end 
     end
   finally
     cd(wd)
@@ -40,7 +42,7 @@ makedocs(
   format=Markdown(),
   clean=false,
   pages=[
-    "Home" => "index.md", # this won't get used anyway; we use mkdocs instead for interoperability with weave's markdown output.
+    "Home" => "index.md", # this won't get used anyway; we use quarto instead for interoperability with weave's markdown output.
   ],
   repo="https://github.com/schrimpf/ARGridBootstrap.jl/blob/{commit}{path}#L{line}",
   sitename="ARGridBootstrap.jl",

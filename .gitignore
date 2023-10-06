@@ -4,7 +4,13 @@
 /docs/site
 /docs/weavecache
 /docs/auto
-/docs/build
+/docs/build/*md
+/docs/build/*ipynb
+/docs/build/*/*
+/docs/build/.gitignore
+/docs/build/*bib
+/docs/build/*js
+*html
 *~
 LocalPreferences.toml
 *.el
