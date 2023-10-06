@@ -49,10 +49,11 @@ makedocs(
   authors="Paul Schrimpf <paul.schrimpf@gmail.com>",
 )
 
-run(`quarto build build`)
+#run(`quarto build build`)
 
 
 deploy=true
 if deploy || "deploy" in ARGS
+  cd(@__DIR__)
   run(`quarto publish gh-pages build`)
 end
