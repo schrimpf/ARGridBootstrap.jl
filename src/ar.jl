@@ -25,7 +25,6 @@ function ar1_original(y0, a, e, rindex=T->rand(1:length(e),T))
   y
 end
 
-
 """
     b_est_original(y)
 
@@ -49,10 +48,6 @@ function b_est_original(yin)
   e = y - x*θ
   se = sqrt.(diag(inv(x'*x) *(e'*e))./(T-4))
   (θ=θ,se=se,e=e)
-end
-
-function b_est_prealloc!(x, yin)
-  
 end
 
 struct bEstCached
@@ -376,7 +371,7 @@ function simulate_estimate_arp(y0, a, e, ar::Val{P}=Val(1),
       end
     end
     y = dot(α, xt) + et
-    @simd for i in 1:(P+2)
+    @sim\d for i in 1:(P+2)
       xy[i] += xt[i]*y
     end
     yy += y^2
