@@ -1,10 +1,15 @@
 [deps]
-ARGridBootstrap = "8c7cac60-37ca-418c-be28-fd9d1bae9cd2"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CodeTracking = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterMarkdown = "997ab1e6-3595-5248-9280-8efb232c3433"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+ProfileCanvas = "efd6af41-a80b-495e-886c-e51b0c7d77a3"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+StrideArrays = "d1fa6d79-ef01-42a6-86c9-f7c551f8593b"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
+
+[extras]
+CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"

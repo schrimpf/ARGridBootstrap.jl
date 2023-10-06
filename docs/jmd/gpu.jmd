@@ -1,0 +1,282 @@
+---
+title       : "Coding for Performance"
+subtitle    : "3: Using GPUs"
+author      : Paul Schrimpf
+date        : `j using Dates; print(Dates.today())`
+bibliography: "perf.bib"
+---
+
+This is 
+
+# GPU
+
+Compared to CPUs, GPUs have a huge number of cores operating at a
+slower clockrate. GPUs also have their own separate memory, which they
+can access faster than CPUs access RAM.  These characteristics make
+GPUs well-suited to large parallel computations. Unfortunately, fully
+utilizing GPUs can require substantial changes to your code.
+
+See ["The Different Flavors of
+Parallelism"](https://mitmath.github.io/18337/lecture6/styles_of_parallelism)
+Rackauckas (2019) [@rackauckas2019c] for more information comparing
+GPUs to various forms of parallelism on CPUs.
+
+## Array interface
+
+The easiest way to use a GPU in Julia is through a high level array
+interface. `ArrayFire.jl`, `oneAPI.jl`, and `CUDA.jl` each offer such
+interfaces. We will focus on `CUDA.jl` in these
+notes. `CUDA.jl` relies on Nvidia's CUDA platform, so it only
+works with Nvidia GPUs. Nvidia tends to dominate GPGPU, and the GPUs
+available on cedar.computecanada.ca and in my desktop are Nvidia.
+
+Using CUDA.CuArray is simple, but has some limitations. You create arrays
+on the GPU using ` CuArray`. Any array level operation on these will
+then be performed efficiently on the GPU. This includes broadcast
+functions with ` .` and matrix multiplies.
+
+```julia
+using CUDA, Random, BenchmarkTools
+
+
+N = 1000
+M = 1000
+
+function cuarraydemo(N,M)
+  # wrapped in a  function so that the CuArrays are freed
+  # otherwise we will run out GPU memory later
+  A = randn(N,M);
+  b = randn(M,2);
+  println("Time on CPU")
+  function foo(A,b)
+    (A.^2)*b
+  end
+  @time c=foo(A,b);
+  @time c=foo(A,b);
+  A_gpu = CuArray(A); # copy of A in GPU memory
+  b_gpu = CuArray(b);
+  println("Computations on the GPU are fast")
+  # @btime does not work inside a function
+  @time CUDA.@sync c_gpu=foo(A_gpu,b_gpu);
+  @time CUDA.@sync c_gpu=foo(A_gpu,b_gpu);
+  println("But copying to and from GPU memory is not")
+  bar(A,b) =Array(foo(CuArray(A), CuArray(b)))
+  @time c2=bar(A,b);
+  @time c2=bar(A,b);
+end
+
+```
+
+```julia; echo=false; results="hidden"
+cuarraydemo(10,10);
+```
+
+
+```julia; term=true
+cuarraydemo(N,M);
+```
+
+`CuArray`s also allow indexing, so you could use loops and other
+constructs. However, this will not be fast. `CuArray`s by itself will be
+a good method to utilize GPUs when the code is dominated by operations
+on large arrays.
+
+Unfortunately, the fastest version of our grid bootstrap code does not
+fit that description. A loop seems needed to generate $y$ due to the
+recursiveness of the AR(1) model. The fastest version of the code
+above involves many operations on small 3x3 arrays.
+
+EXERCISE: modify ` b_est_original` or ` b_est_mldivide` to utilize
+` CuArray`s. The approach taken in those functions involves some
+moderate sized matrices, so it may benefit from ` CuArray`s.
+
+
+## Custom CUDA Kernels
+
+To parallelize the code above on a GPU, we will have to use a lower
+level interface to the GPU. To explain how it works, we will begin
+with a simple example that just squares all the elements of an array.
+
+Disclaimer: my understanding of CUDA and the inner workings of GPUs is
+far from complete. Some of the details in this section might be
+inaccurate.
+
+A typical workflow with CUDA consists of
+
+1. Allocate GPU memory and copying arrays into it with ` CuArray`.
+2. Decide how many threads and what configuration of threads to
+   launch.
+3. Each thread does some computation by running a "kernel" function.
+4. Copy result from GPU memory to CPU memory.
+
+In the code below, 1 happens in `cuarray_cudanative_compare`, 2 happens in the
+` square!` function, ` square_kernel!` is the kernel in 3, and 4 is just
+not done.
+
+### Threads and blocks
+
+CUDA organizes GPU threads into blocks. I believe that the threads in
+a block all execute concurrently. Threads in the same block share some
+memory and registers. All current Nvidia GPUs have a maximum number of
+threads per block of 1024. Note that threads in the same block share
+registers[^reg], and different kernel functions will use different
+numbers of registers at once, so depending on the kernel function, you
+might be limited to fewer than 1024 threads per block. The number of
+registers available per block depends on your GPU. You can check your
+GPU characteristics by compiling and running the C++ program in
+`$CUDA_PATH/samples/1_Utilities/deviceQuery/`. Alternatively, you can
+see this information in Julia by running the code below.
+
+```julia
+println("Maximum threads per block $(attribute(device(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK))")
+println("Maximum x blocks $(attribute(device(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X))")
+println("Maximum registers per block $(attribute(device(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_BLOCK))")
+```
+
+There is no simple way to predict how many registers a kernel function
+uses. It will depend both on the code you write and how the compiler
+optimizes the code. If you encounter cryptic error messages about CUDA
+resources unavailable, then try reducing the number of threads per
+block. Alternatively, you can limit the number of registers used by
+passing the `maxregs` argument to `@cuda`.
+
+You can execute more than 1024 threads by specifying a number of
+blocks. There is also a limit to the number of blocks, but it is
+rather large. In the code below, we set the number of blocks, so that
+` nblocks*nthreads >= length(A)`. Each thread then operates on a single
+element of ` A`. When the code is executed, each thread has a unique
+` threadIdx` and ` blockIdx` combination, and these are used to assign
+threads to elements of ` A`. The indices go from 1 to number of threads
+(or blocks). For convenience you can request threads and blocks to
+have up 3 dimensions, and there are ` threadIdx().y` and
+` threadIdx().z` for the additional dimensions.
+
+[^reg]: Processor registers are the fastest bits of memory on the
+    processor, and registers are where the actual addition,
+    multiplication, and other instructions are carried out.
+
+```julia
+function square!(A::CuArray)
+  n = length(A)
+  maxthreads = 1024
+  nthreads = min(maxthreads, n)
+  nblocks  = Int(ceil(n/nthreads))
+
+  @cuda threads=nthreads blocks=nblocks square_kernel!(A)
+
+  return A
+end
+
+function square_kernel!(A)
+  i = threadIdx().x + (blockIdx().x-1)*blockDim().x
+  if (i<=length(A))
+    @inbounds A[i] *= A[i]
+  end
+  return nothing # CUDA kernels must return nothing
+end
+
+function cuarray_cudanative_compare(A)
+  A_gpu = CuArray(A);
+  println("CUDAnative square!")
+  @time CUDA.@sync square!(A_gpu);
+  @time CUDA.@sync square!(A_gpu);
+
+  println("CuArray A*=A")
+  A_gpu = CuArray(A);
+  @time CUDA.@sync A_gpu .*= A_gpu;
+  @time CUDA.@sync A_gpu .*= A_gpu;
+  return nothing
+end
+```
+
+```julia; echo=false; results="hidden"
+cuarray_cudanative_compare(randn(N,M))
+```
+
+```julia; term=true
+cuarray_cudanative_compare(randn(N,M))
+```
+### Kernel Limitations
+
+CUDA kernel functions execute on the GPU and in GPU memory. Since GPU
+memory is allocated and managed differently than RAM, many Julia
+functions will not work in CUDA kernels. Most importantly, Julia
+functions that allocate dynamically sized arrays will not work. This
+means that even matrix multiplication like ` θ = ixx*xy` will fail (if
+`ixx` or `xy` are dynamically allocated) since it allocates an array
+for ` θ`. You can, however, have local scalars, tuples, and `
+StaticArrays` within a kernel function. The key difference is that the
+sizes of these types are known at compile time. If `ixx` and `xy` are
+`StaticArrays`, then you can do something like `θ = ixx*xy`. Since the
+compiler knows the size of `ixx` and `xy`, the compiler also know the
+size of `θ`. However, even with ` StaticArrays` you must be careful
+with operations that that create new StaticArrays (like matrix
+multiplies). These will cause problems if called repeatedly within a
+loop.[^loops]
+
+[^loops]: If you create StaticArrays inside a loop, they get allocated
+    to the GPU's "dynamic shared memory." I believe a new allocation
+    happens each loop iteration. This will be slow, and there is a
+    fairly small amount of dynamic shared memory, of which you will
+    soon run out.
+
+It is possible to dynamicaaly allocate GPU memory within a kernel
+function, but it requires using the low-level interface to CUDA in
+`CUDA.jl`. Moreoever, it is generally not a good idea to be
+dynamically allocating and freeing memory in each of the thousands of
+threads you execute.[^caveat]
+
+
+[^caveat]: There are situations where allocating shared memory is
+    needed and a good idea, but these require some advanced techniques
+    that we will not cover.
+
+# GPU grid bootstrap
+
+```julia; results="hidden"; echo=false
+using ARGridBootstrap, CodeTracking, Random, BenchmarkTools, Profile, ProfileCanvas
+function code_md(s)
+  println("```julia\n"*s*"\n```\n")
+end
+T = 200
+e = randn(T)
+y0 = 0
+a = 0.9
+y = ar1_original(y0, a, e)
+est = b_est_original(y)
+αgrid = 0.84:(0.22/50):1.06
+nboot= 199
+wrapper(b_est) = function(x)
+  out=b_est(x)
+  (out.θ[3], out.se[3])
+end
+```
+
+
+```julia; results="raw"
+s = @code_string argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64)
+code_md(s)
+```
+
+```julia; results="raw"
+s = @code_string ARGridBootstrap.argridkernel!(1.,1., 1., Val(1), 1., 1. , 1.)
+code_md(s)
+```
+
+```julia; cache=true
+@benchmark begin
+  grid = argridbootstrap_gpu(est.e, y0, grid=αgrid, nboot=nboot, RealType=Float64);
+end
+```
+
+Compared to the fastest CPU code above, the GPU version takes about
+1/20th the time of the single-threaded CPU code, and is about 33\% faster than the
+the 40-threaded CPU code. Considering that the two CPUs in my
+workstation together cost about 6 times more than the single GPU, the
+performance of the GPU code is quite good. Also, we carefully profiled
+and tuned the CPU code, but not the GPU code (although the GPU code
+does use all algorithmic improvements of the fastest CPU code). Profiling GPU kernel
+code requires using Nvidia's profiler, see
+[CUDA.jl
+documentation](https://cuda.juliagpu.org/stable/development/profiling/)
+for information.

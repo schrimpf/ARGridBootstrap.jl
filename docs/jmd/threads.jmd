@@ -1,0 +1,123 @@
+---
+title       : "Coding for Performance"
+subtitle    : "2: Multi-Threading"
+author      : Paul Schrimpf
+date        : `j using Dates; print(Dates.today())`
+bibliography: "perf.bib"
+---
+
+# Multi-Threading
+
+Current computers almost all have multiple cores. We can divide the
+time it takes our code by up to the number of cores we have (but
+usually less) by writing multi-threaded code. Multi-threaded code
+performs multiple tasks at once with shared memory. Before you begin
+writing multi-threaded code, you should make sure your code isn't
+already using all available cores. It is likely that the BLAS and
+Lapack libraries that Julia uses for linear algebra are
+multi-threaded. If you code is dominated by large matrix operations,
+it may already be using all available cores. In that case, there will
+not be much benefit from additional multi-threading.
+
+Read ["The Basics of Single Node Parallel Computing"](https://mitmath.github.io/18337/lecture5/parallelism_overview)
+Rackauckus (2019) [@rackauckas2019b] .
+
+Once we have decided that the code might benefit from multi-threading,
+we should look for loops (or other independent tasks) that can be
+multi-threaded. There is some overhead from creating threads and
+communicating among them. Multi-threading generally works best for
+loops where each iteration involves substantial work, and each
+iteration is independent of all others. The loops over grid points and
+bootstrap repetitions in ` gridbootstrap` are perfect candidates. We
+don't care about the order in which these loops get executed. The
+result of each iteration is (mostly) independent of all others.
+
+
+
+```julia; results="hidden"
+using ARGridBootstrap, CodeTracking, Random, BenchmarkTools, Profile, ProfileCanvas
+function code_md(s)
+  println("```julia\n"*s*"\n```\n")
+end
+T = 200
+e = randn(T)
+y0 = 0
+a = 0.9
+y = ar1_original(y0, a, e)
+est = b_est_original(y)
+αgrid = 0.84:(0.22/50):1.06
+nboot= 199
+wrapper(b_est) = function(x)
+  out=b_est(x)
+  (out.θ[3], out.se[3])
+end
+```
+
+## Multi-Threaded Grid Bootstrap
+
+```julia; results="raw"
+s=@code_string gridbootstrap_threaded(wrapper(b_est_original), (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),αgrid, 2)
+code_md(s)
+```
+
+## Some Libraries are Already Multi-Threaded
+
+Now, let's try multi-threading the original version of the code.
+
+```julia; cache=true; term=true
+using Base.Threads
+println("Single thread, original version")
+@benchmark begin 
+  (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+                        αgrid, 199)
+end
+```
+
+```julia;cache=true; term=true
+println("$(Threads.nthreads()) threads, original version")
+@benchmark begin 
+  (b,t) = gridbootstrap_threaded(wrapper(b_est_original),
+                                 (a, rng)->ar1_original(y0, a, est.e, n->rand(rng,1:(T-1),n)),
+                                 αgrid, 199)
+end
+```
+
+The execution times are nearly identical on my computer. The reason is
+that the computation is dominated by the creation of ` X` and
+multiplying ` X'*X` and ` X'*y`. These operations are already
+multi-threaded in the BLAS library being used. It is possible
+that first calling ` using LinearAlgebra; BLAS.set_num_threads(1)` would
+improve the performance of the multi-threaded bootstrap.
+
+## Multi-Threading Where it Matters
+
+```julia; cache=true; term=true
+println("Single thread, fastest version")
+estimator(y0=y0,e=est.e) = function(a)
+  out = simulate_estimate_arp(y0,a,e)
+  (out.θ[3], out.se[3])
+end
+@benchmark  (b,t) = gridbootstrap(estimator(), a->a, αgrid, nboot)
+```
+
+```julia; cache=true; term=true
+println("$(Threads.nthreads()) threads, fastest version")
+estimator_threaded(y0=y0,e=est.e)=function(foo)
+  (a, rng) = foo
+  out=simulate_estimate_arp(y0,a,e,Val(1),()->rand(rng,1:length(e)))
+  (out.θ[3], out.se[3])
+end
+@benchmark (bs, ts) = gridbootstrap_threaded(estimator_threaded(),(a,rng)->(a,rng), αgrid,nboot)
+```
+
+Notice how the speedup from using multiple threads is far less than
+number of cores. On my computer, the threaded version of the code is
+about 7 times faster, even though my computer has 40 "cores" (or 20
+physical cores. My computer has 2 processors with 10 cores each, and each
+core is hyperthreaded into 2. The OS sees 40 processors, but half of
+them are sharing substantial resources). A speedup far less than the
+number of cores is typical. Creating and managing multiple threads
+creates some overhead. Moreover, cores must share various resources;
+most notably RAM and some cache.
+
+
