@@ -1,24 +1,9 @@
 using ARGridBootstrap
-using Test, Random
+using Test, Random, TestItemRunner
 
-# Create fake RNG that generates 1:T to pass to simulate_estimate_arp
-function cycle(T)
-  state = 0
-  function next(n=1)
-    if (n==1) 
-      state = (state>=T) ? 1 : state+1
-      return(state)
-    else
-      out = zeros(Int,n)
-      for i in eachindex(out)
-        out[i] = next()
-      end
-      return(out)
-    end
-  end
-end
 
-@testset "cycle" begin
+@testitem "cycle" begin
+  include("cycle.jl")
   T = 25
   foo = cycle(T)
   for t in 1:(T+5)
@@ -27,8 +12,8 @@ end
   @test foo(3)==6:8
 end
 
-@testset "AR estimation and simulation" begin
-
+@testitem "AR estimation and simulation" begin
+  include("cycle.jl")
   T = 200
   e = randn(T)
   y0 = 0
@@ -51,8 +36,8 @@ end
   @test so ≈ ss
 end
 
-@testset "Gridbootstrap" begin
-
+@testitem "Gridbootstrap" begin
+  using Random
   T = 200
   e = randn(T)
   y0 = 0
@@ -83,7 +68,7 @@ end
   @test isapprox(tx, ts, rtol=1e-4)    
 end
 
-@testset "Gridbootstrap_threaded" begin
+@testitem "Gridbootstrap_threaded" begin
   T = 200
   e = randn(T)
   y0 = 0
@@ -110,7 +95,6 @@ end
 
 
 @testset "gridbootstrap_gpu" begin
-  
   T = 200
   e = randn(T)
   y0 = 0

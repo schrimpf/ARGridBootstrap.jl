@@ -1,10 +1,7 @@
-authors = ["Paul Schrimpf <paul.schrimpf@gmail.com>"]
 name = "ARGridBootstrap"
 uuid = "8c7cac60-37ca-418c-be28-fd9d1bae9cd2"
+authors = ["Paul Schrimpf <paul.schrimpf@gmail.com>"]
 version = "0.1.0"
-
-[compat]
-julia = "1"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
@@ -18,6 +15,12 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StrideArrays = "d1fa6d79-ef01-42a6-86c9-f7c551f8593b"
 
 [compat]
+CUDA = "5"
+LoopVectorization = "0.12"
+Parameters = "0.12"
+SIMD = "3"
+StaticArrays = "1"
+StrideArrays = "0.1"
 julia = "1"
 
 [extras]
