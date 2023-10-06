@@ -51,6 +51,18 @@ function b_est_original(yin)
   (θ=θ,se=se,e=e)
 end
 
+function b_est_prealloc!(x, yin)
+  T = length(yin)
+  x[:,1] .= 1
+  x[:,2] .= 2:T
+  x[:,3] .= yin[1:(end-1)]
+  y = yin[2:T]
+  θ = x'*x \ x'y
+  e = y - x*θ
+  se = sqrt.(diag(inv(x'*x) *(e'*e))./(T-4))
+  (θ=θ,se=se,e=e)
+end
+
 
 """
     b_est_mldivide(y)

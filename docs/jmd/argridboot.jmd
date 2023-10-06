@@ -96,7 +96,7 @@ wrapper(b_est) = function(x)
   out=b_est(x)
   (out.θ[3], out.se[3])
 end
-@btime (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+bench=@benchmark (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
                              αgrid, nboot);
 ```
 
@@ -106,7 +106,7 @@ To make code faster, we should begin by profiling.
 using Profile
 Profile.clear();
 Profile.init(n=10^7,delay=0.0001);
-@profile (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
+@profview (b,t) = gridbootstrap(wrapper(b_est_original), a->ar1_original(y0, a, est.e),
                                αgrid, 999);
 Profile.print(noisefloor=2.0)
 ```
