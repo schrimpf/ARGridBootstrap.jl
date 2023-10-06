@@ -120,6 +120,9 @@ function b_est_nox(yin)
     xy[2] = muladd(t, yin[t], xy[2])
     xy[3] = muladd(yin[t-1],yin[t], xy[3])
   end
+    xy[2] += t*yin[t]
+    xy[3] += yin[t-1]*yin[t]
+  end 
   xx[1,1] = T-1 # = 1'*1
   xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(p+1:T)
   xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)
