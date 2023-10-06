@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Paul Schrimpf">
+<meta name="dcterms.date" content="2023-10-06">
+
+<title>ARGridBootstrap - Coding for Performance</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">ARGridBootstrap</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html" rel="" target="">
+ <span class="menu-text">Package Documentation</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./argridboot.html" rel="" target="">
+ <span class="menu-text">Coding for Performance</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./threads.html" rel="" target="">
+ <span class="menu-text">Multi-Threading</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="./gpu.html" rel="" target="" aria-current="page">
+ <span class="menu-text">Using GPUs</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./license.html" rel="" target="">
+ <span class="menu-text">License</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools ms-auto">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#gpu" id="toc-gpu" class="nav-link active" data-scroll-target="#gpu">GPU</a>
+  <ul class="collapse">
+  <li><a href="#array-interface" id="toc-array-interface" class="nav-link" data-scroll-target="#array-interface">Array interface</a></li>
+  <li><a href="#custom-cuda-kernels" id="toc-custom-cuda-kernels" class="nav-link" data-scroll-target="#custom-cuda-kernels">Custom CUDA Kernels</a>
+  <ul class="collapse">
+  <li><a href="#threads-and-blocks" id="toc-threads-and-blocks" class="nav-link" data-scroll-target="#threads-and-blocks">Threads and blocks</a></li>
+  <li><a href="#kernel-limitations" id="toc-kernel-limitations" class="nav-link" data-scroll-target="#kernel-limitations">Kernel Limitations</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#gpu-grid-bootstrap" id="toc-gpu-grid-bootstrap" class="nav-link" data-scroll-target="#gpu-grid-bootstrap">GPU grid bootstrap</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Coding for Performance</h1>
+<p class="subtitle lead">3: Using GPUs</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Paul Schrimpf </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">October 6, 2023</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<p>This is</p>
+<section id="gpu" class="level1">
+<h1>GPU</h1>
+<p>Compared to CPUs, GPUs have a huge number of cores operating at a slower clockrate. GPUs also have their own separate memory, which they can access faster than CPUs access RAM. These characteristics make GPUs well-suited to large parallel computations. Unfortunately, fully utilizing GPUs can require substantial changes to your code.</p>
+<p>See <a href="https://mitmath.github.io/18337/lecture6/styles_of_parallelism">“The Different Flavors of Parallelism”</a> Rackauckas (2019) <span class="citation" data-cites="rackauckas2019c">(<a href="#ref-rackauckas2019c" role="doc-biblioref">Rackauckas 2019</a>)</span> for more information comparing GPUs to various forms of parallelism on CPUs.</p>
+<section id="array-interface" class="level2">
+<h2 class="anchored" data-anchor-id="array-interface">Array interface</h2>
+<p>The easiest way to use a GPU in Julia is through a high level array interface. <code>ArrayFire.jl</code>, <code>oneAPI.jl</code>, and <code>CUDA.jl</code> each offer such interfaces. We will focus on <code>CUDA.jl</code> in these notes. <code>CUDA.jl</code> relies on Nvidia’s CUDA platform, so it only works with Nvidia GPUs. Nvidia tends to dominate GPGPU, and the GPUs available on cedar.computecanada.ca and in my desktop are Nvidia.</p>
+<p>Using CUDA.CuArray is simple, but has some limitations. You create arrays on the GPU using <code>CuArray</code>. Any array level operation on these will then be performed efficiently on the GPU. This includes broadcast functions with <code>.</code> and matrix multiplies.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CUDA</span>, <span class="bu">Random</span>, <span class="bu">BenchmarkTools</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>N <span class="op">=</span> <span class="fl">1000</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>M <span class="op">=</span> <span class="fl">1000</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">cuarraydemo</span>(N,M)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># wrapped in a  function so that the CuArrays are freed</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># otherwise we will run out GPU memory later</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  A <span class="op">=</span> <span class="fu">randn</span>(N,M);</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  b <span class="op">=</span> <span class="fu">randn</span>(M,<span class="fl">2</span>);</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">println</span>(<span class="st">"Time on CPU"</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span> <span class="fu">foo</span>(A,b)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    (A<span class="op">.^</span><span class="fl">2</span>)<span class="op">*</span>b</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> c<span class="op">=</span><span class="fu">foo</span>(A,b);</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> c<span class="op">=</span><span class="fu">foo</span>(A,b);</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  A_gpu <span class="op">=</span> <span class="fu">CuArray</span>(A); <span class="co"># copy of A in GPU memory</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  b_gpu <span class="op">=</span> <span class="fu">CuArray</span>(b);</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">println</span>(<span class="st">"Computations on the GPU are fast"</span>)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># @btime does not work inside a function</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> CUDA.<span class="pp">@sync</span> c_gpu<span class="op">=</span><span class="fu">foo</span>(A_gpu,b_gpu);</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> CUDA.<span class="pp">@sync</span> c_gpu<span class="op">=</span><span class="fu">foo</span>(A_gpu,b_gpu);</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">println</span>(<span class="st">"But copying to and from GPU memory is not"</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bar</span>(A,b) <span class="op">=</span><span class="fu">Array</span>(<span class="fu">foo</span>(<span class="fu">CuArray</span>(A), <span class="fu">CuArray</span>(b)))</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> c2<span class="op">=</span><span class="fu">bar</span>(A,b);</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> c2<span class="op">=</span><span class="fu">bar</span>(A,b);</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>cuarraydemo (generic function with 1 method)</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>julia<span class="op">&gt;</span> <span class="fu">cuarraydemo</span>(N,M);</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Time</span> on CPU</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.017174</span> seconds (<span class="fl">3</span> allocations<span class="op">:</span> <span class="fl">7.645</span> MiB)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.008491</span> seconds (<span class="fl">3</span> allocations<span class="op">:</span> <span class="fl">7.645</span> MiB)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>Computations on the GPU are fast</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000287</span> seconds (<span class="fl">80</span> allocations<span class="op">:</span> <span class="fl">3.125</span> KiB)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000218</span> seconds (<span class="fl">80</span> allocations<span class="op">:</span> <span class="fl">3.125</span> KiB)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>But copying to and from GPU memory is not</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.001545</span> seconds (<span class="fl">102</span> allocations<span class="op">:</span> <span class="fl">19.578</span> KiB)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.001167</span> seconds (<span class="fl">102</span> allocations<span class="op">:</span> <span class="fl">19.578</span> KiB)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><code>CuArray</code>s also allow indexing, so you could use loops and other constructs. However, this will not be fast. <code>CuArray</code>s by itself will be a good method to utilize GPUs when the code is dominated by operations on large arrays.</p>
+<p>Unfortunately, the fastest version of our grid bootstrap code does not fit that description. A loop seems needed to generate <span class="math inline">\(y\)</span> due to the recursiveness of the AR(1) model. The fastest version of the code above involves many operations on small 3x3 arrays.</p>
+<p>EXERCISE: modify <code>b_est_original</code> or <code>b_est_mldivide</code> to utilize <code>CuArray</code>s. The approach taken in those functions involves some moderate sized matrices, so it may benefit from <code>CuArray</code>s.</p>
+</section>
+<section id="custom-cuda-kernels" class="level2">
+<h2 class="anchored" data-anchor-id="custom-cuda-kernels">Custom CUDA Kernels</h2>
+<p>To parallelize the code above on a GPU, we will have to use a lower level interface to the GPU. To explain how it works, we will begin with a simple example that just squares all the elements of an array.</p>
+<p>Disclaimer: my understanding of CUDA and the inner workings of GPUs is far from complete. Some of the details in this section might be inaccurate.</p>
+<p>A typical workflow with CUDA consists of</p>
+<ol type="1">
+<li>Allocate GPU memory and copying arrays into it with <code>CuArray</code>.</li>
+<li>Decide how many threads and what configuration of threads to launch.</li>
+<li>Each thread does some computation by running a “kernel” function.</li>
+<li>Copy result from GPU memory to CPU memory.</li>
+</ol>
+<p>In the code below, 1 happens in <code>cuarray_cudanative_compare</code>, 2 happens in the <code>square!</code> function, <code>square_kernel!</code> is the kernel in 3, and 4 is just not done.</p>
+<section id="threads-and-blocks" class="level3">
+<h3 class="anchored" data-anchor-id="threads-and-blocks">Threads and blocks</h3>
+<p>CUDA organizes GPU threads into blocks. I believe that the threads in a block all execute concurrently. Threads in the same block share some memory and registers. All current Nvidia GPUs have a maximum number of threads per block of 1024. Note that threads in the same block share registers<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>, and different kernel functions will use different numbers of registers at once, so depending on the kernel function, you might be limited to fewer than 1024 threads per block. The number of registers available per block depends on your GPU. You can check your GPU characteristics by compiling and running the C++ program in <code>$CUDA_PATH/samples/1_Utilities/deviceQuery/</code>. Alternatively, you can see this information in Julia by running the code below.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">println</span>(<span class="st">"Maximum threads per block </span><span class="sc">$</span>(<span class="fu">attribute</span>(<span class="fu">device</span>(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK))<span class="st">"</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">println</span>(<span class="st">"Maximum x blocks </span><span class="sc">$</span>(<span class="fu">attribute</span>(<span class="fu">device</span>(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X))<span class="st">"</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">println</span>(<span class="st">"Maximum registers per block </span><span class="sc">$</span>(<span class="fu">attribute</span>(<span class="fu">device</span>(), CUDA.CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_BLOCK))<span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>Maximum threads per block 1024
+Maximum x blocks 2147483647
+Maximum registers per block 65536</code></pre>
+<p>There is no simple way to predict how many registers a kernel function uses. It will depend both on the code you write and how the compiler optimizes the code. If you encounter cryptic error messages about CUDA resources unavailable, then try reducing the number of threads per block. Alternatively, you can limit the number of registers used by passing the <code>maxregs</code> argument to <code>@cuda</code>.</p>
+<p>You can execute more than 1024 threads by specifying a number of blocks. There is also a limit to the number of blocks, but it is rather large. In the code below, we set the number of blocks, so that <code>nblocks*nthreads &gt;= length(A)</code>. Each thread then operates on a single element of <code>A</code>. When the code is executed, each thread has a unique <code>threadIdx</code> and <code>blockIdx</code> combination, and these are used to assign threads to elements of <code>A</code>. The indices go from 1 to number of threads (or blocks). For convenience you can request threads and blocks to have up 3 dimensions, and there are <code>threadIdx().y</code> and <code>threadIdx().z</code> for the additional dimensions.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">square!</span>(A<span class="op">::</span><span class="dt">CuArray</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  n <span class="op">=</span> <span class="fu">length</span>(A)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  maxthreads <span class="op">=</span> <span class="fl">1024</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  nthreads <span class="op">=</span> <span class="fu">min</span>(maxthreads, n)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  nblocks  <span class="op">=</span> <span class="fu">Int</span>(<span class="fu">ceil</span>(n<span class="op">/</span>nthreads))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@cuda</span> threads<span class="op">=</span>nthreads blocks<span class="op">=</span>nblocks <span class="fu">square_kernel!</span>(A)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> A</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">square_kernel!</span>(A)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  i <span class="op">=</span> <span class="fu">threadIdx</span>().x <span class="op">+</span> (<span class="fu">blockIdx</span>().x<span class="op">-</span><span class="fl">1</span>)<span class="fu">*blockDim</span>().x</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (i<span class="op">&lt;=</span><span class="fu">length</span>(A))</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@inbounds</span> A[i] <span class="op">*=</span> A[i]</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> <span class="cn">nothing</span> <span class="co"># CUDA kernels must return nothing</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">cuarray_cudanative_compare</span>(A)</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>  A_gpu <span class="op">=</span> <span class="fu">CuArray</span>(A);</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">println</span>(<span class="st">"CUDAnative square!"</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> CUDA.<span class="pp">@sync</span> <span class="fu">square!</span>(A_gpu);</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> CUDA.<span class="pp">@sync</span> <span class="fu">square!</span>(A_gpu);</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">println</span>(<span class="st">"CuArray A*=A"</span>)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  A_gpu <span class="op">=</span> <span class="fu">CuArray</span>(A);</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> CUDA.<span class="pp">@sync</span> A_gpu <span class="op">.*=</span> A_gpu;</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@time</span> CUDA.<span class="pp">@sync</span> A_gpu <span class="op">.*=</span> A_gpu;</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> <span class="cn">nothing</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>cuarray_cudanative_compare (generic function with 1 method)</code></pre>
+<div class="sourceCode" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>julia<span class="op">&gt;</span> <span class="fu">cuarray_cudanative_compare</span>(<span class="fu">randn</span>(N,M))</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>CUDAnative square!</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000194</span> seconds (<span class="fl">8</span> allocations<span class="op">:</span> <span class="fl">400</span> bytes)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000129</span> seconds (<span class="fl">8</span> allocations<span class="op">:</span> <span class="fl">400</span> bytes)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>CuArray A<span class="op">*=</span>A</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000201</span> seconds (<span class="fl">31</span> allocations<span class="op">:</span> <span class="fl">2.109</span> KiB)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000135</span> seconds (<span class="fl">31</span> allocations<span class="op">:</span> <span class="fl">2.109</span> KiB)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="kernel-limitations" class="level3">
+<h3 class="anchored" data-anchor-id="kernel-limitations">Kernel Limitations</h3>
+<p>CUDA kernel functions execute on the GPU and in GPU memory. Since GPU memory is allocated and managed differently than RAM, many Julia functions will not work in CUDA kernels. Most importantly, Julia functions that allocate dynamically sized arrays will not work. This means that even matrix multiplication like <code>θ = ixx*xy</code> will fail (if <code>ixx</code> or <code>xy</code> are dynamically allocated) since it allocates an array for <code>θ</code>. You can, however, have local scalars, tuples, and <code>StaticArrays</code> within a kernel function. The key difference is that the sizes of these types are known at compile time. If <code>ixx</code> and <code>xy</code> are <code>StaticArrays</code>, then you can do something like <code>θ = ixx*xy</code>. Since the compiler knows the size of <code>ixx</code> and <code>xy</code>, the compiler also know the size of <code>θ</code>. However, even with <code>StaticArrays</code> you must be careful with operations that that create new StaticArrays (like matrix multiplies). These will cause problems if called repeatedly within a loop.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a></p>
+<p>It is possible to dynamicaaly allocate GPU memory within a kernel function, but it requires using the low-level interface to CUDA in <code>CUDA.jl</code>. Moreoever, it is generally not a good idea to be dynamically allocating and freeing memory in each of the thousands of threads you execute.<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a></p>
+</section>
+</section>
+</section>
+<section id="gpu-grid-bootstrap" class="level1">
+<h1>GPU grid bootstrap</h1>
+<div class="sourceCode" id="cb9"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>s <span class="op">=</span> <span class="pp">@code_string</span> <span class="fu">argridbootstrap_gpu</span>(est.<span class="cn">e</span>, y0, grid<span class="op">=</span>αgrid, nboot<span class="op">=</span>nboot, RealType<span class="op">=</span><span class="dt">Float64</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">code_md</span>(s)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">argridbootstrap_gpu</span>(<span class="cn">e</span>, y0;</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                             grid <span class="op">=</span> <span class="fl">0.84</span><span class="op">:</span>(<span class="fl">0.22</span><span class="op">/</span><span class="fl">20</span>)<span class="op">:</span><span class="fl">1.06</span>,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                             nboot<span class="op">=</span><span class="fl">199</span>, RealType <span class="op">=</span> <span class="dt">Float32</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  g <span class="op">=</span> <span class="fu">length</span>(grid)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  P <span class="op">=</span> <span class="fl">3</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Allocate GPU memory</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  bootq <span class="op">=</span> <span class="fu">CuArray</span>(<span class="fu">zeros</span>(RealType, nboot, g))</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  ba    <span class="op">=</span> <span class="fu">CuArray</span>(<span class="fu">zeros</span>(RealType, nboot, g))</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  bootse<span class="op">=</span> <span class="fu">CuArray</span>(<span class="fu">zeros</span>(RealType, nboot,g))</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  αg <span class="op">=</span> <span class="fu">CuArray</span>(<span class="fu">RealType</span>.(grid))</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  eg <span class="op">=</span> <span class="fu">CuArray</span>(<span class="fu">RealType</span>.(<span class="cn">e</span>))</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  ei <span class="op">=</span> <span class="fu">Int</span>.(<span class="fu">ceil</span>.(<span class="fu">length</span>(<span class="cn">e</span>)<span class="op">.*</span>CUDA.<span class="fu">rand</span>(RealType,nboot,g,<span class="fu">length</span>(<span class="cn">e</span>))))</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># use of registers in gridkernel! limits the maximum threads to less</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># than the full 1024</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  maxthreads <span class="op">=</span> <span class="fu">sizeof</span>(RealType)<span class="op">&lt;=</span><span class="fl">4</span> ? <span class="fl">512</span> <span class="op">:</span> <span class="fl">256</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  gthreads <span class="op">=</span><span class="fl">2</span><span class="op">^</span><span class="fl">2</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  bthreads <span class="op">=</span>maxthreads <span class="op">÷</span> gthreads</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  bblocks <span class="op">=</span> <span class="fu">Int</span>(<span class="fu">ceil</span>(nboot<span class="op">/</span>bthreads))</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  gblocks <span class="op">=</span> <span class="fu">Int</span>(<span class="fu">ceil</span>(g<span class="op">/</span>gthreads))</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@cuda</span> threads<span class="op">=</span>bthreads,gthreads blocks<span class="op">=</span>bblocks,gblocks <span class="fu">argridkernel!</span>(ba,bootq,bootse,<span class="fu">Val</span>(<span class="fl">1</span>), eg, ei, αg)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  ts <span class="op">=</span> ba<span class="op">./</span>bootse</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  (ba<span class="op">=</span><span class="fu">collect</span>(ba), t<span class="op">=</span><span class="fu">collect</span>(ts))</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>s <span class="op">=</span> <span class="pp">@code_string</span> ARGridBootstrap.<span class="fu">argridkernel!</span>(<span class="fl">1</span>.,<span class="fl">1</span>., <span class="fl">1</span>., <span class="fu">Val</span>(<span class="fl">1</span>), <span class="fl">1</span>., <span class="fl">1</span>. , <span class="fl">1</span>.)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">code_md</span>(s)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">argridkernel!</span>(ba,bootq, bootse,</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>                       ar<span class="op">::</span><span class="dt">Val{P}</span>, <span class="cn">e</span>, ei, αgrid) <span class="kw">where</span> P</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  b <span class="op">=</span> <span class="fu">threadIdx</span>().x <span class="op">+</span>  (<span class="fu">blockIdx</span>().x<span class="op">-</span><span class="fl">1</span>)<span class="fu">*blockDim</span>().x</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  ak<span class="op">=</span> <span class="fu">threadIdx</span>().y <span class="op">+</span> (<span class="fu">blockIdx</span>().y<span class="op">-</span><span class="fl">1</span>)<span class="fu">*blockDim</span>().y</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">b&gt;size</span>(ba,<span class="fl">1</span>) <span class="op">||</span> <span class="fu">ak&gt;size</span>(ba,<span class="fl">2</span>))</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="cn">nothing</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  T <span class="op">=</span> <span class="fu">size</span>(ei,<span class="fl">3</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  R <span class="op">=</span> <span class="fu">eltype</span>(ba)</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  xx <span class="op">=</span> <span class="fu">zeros</span>(MMatrix{P<span class="op">+</span><span class="fl">2</span>,P<span class="op">+</span><span class="fl">2</span>,R})</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  xy <span class="op">=</span> <span class="fu">zeros</span>(MVector{P<span class="op">+</span><span class="fl">2</span>,R})</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  xt <span class="op">=</span> <span class="fu">zeros</span>(MVector{P<span class="op">+</span><span class="fl">2</span>,R})</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  xt[<span class="fl">1</span>] <span class="op">=</span> <span class="fu">one</span>(R)</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  yy <span class="op">=</span> <span class="fu">zero</span>(R)</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  xx[<span class="fl">1</span>,<span class="fl">1</span>] <span class="op">=</span> T<span class="op">-</span>P</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  xx[<span class="fl">1</span>,<span class="fl">2</span>] <span class="op">=</span> xx[<span class="fl">2</span>,<span class="fl">1</span>] <span class="op">=</span> (T<span class="op">+</span><span class="fl">1</span>)<span class="op">*</span>T<span class="op">/</span><span class="fl">2</span> <span class="op">-</span> (P<span class="op">+</span><span class="fl">1</span>)<span class="op">*</span>P<span class="op">/</span><span class="fl">2</span> <span class="co">#sum((P+1):T)</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  xx[<span class="fl">2</span>,<span class="fl">2</span>] <span class="op">=</span> (<span class="fl">2</span><span class="op">*</span>T<span class="op">+</span><span class="fl">1</span>)<span class="fu">*T*</span>(T<span class="op">+</span><span class="fl">1</span>)<span class="op">/</span><span class="fl">6</span> <span class="op">-</span> (<span class="fl">2</span><span class="op">*</span>P<span class="op">+</span><span class="fl">1</span>)<span class="fu">*P*</span>(P<span class="op">+</span><span class="fl">1</span>)<span class="op">/</span><span class="fl">6</span> <span class="co">#sum((P+1:T).^2)</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  α <span class="op">=</span> <span class="fu">zeros</span>(MVector{P<span class="op">+</span><span class="fl">2</span>, R})</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>  α[<span class="fl">3</span>] <span class="op">=</span> αgrid[ak]</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  <span class="pp">@inbounds</span> <span class="cf">for</span> t <span class="op">=</span> (P<span class="op">+</span><span class="fl">1</span>)<span class="op">:</span>T</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    xt[<span class="fl">2</span>] <span class="op">=</span> t</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="op">=</span> <span class="fl">1</span><span class="op">:</span>(P<span class="op">+</span><span class="fl">2</span>)</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> j <span class="op">=</span> <span class="fl">3</span><span class="op">:</span>(P<span class="op">+</span><span class="fl">2</span>)</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        xx[i,j] <span class="op">+=</span> xt[i]<span class="op">*</span>xt[j]</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>      <span class="cf">end</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> <span class="cn">e</span>[ei[b,ak,t]] <span class="op">+</span> <span class="fu">dot</span>(α,xt)</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>(P<span class="op">+</span><span class="fl">2</span>)</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>      xy[i] <span class="op">+=</span> xt[i]<span class="op">*</span>y</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>    yy <span class="op">+=</span> y<span class="op">*</span>y</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="op">=</span> <span class="fl">4</span><span class="op">:</span>(P<span class="op">+</span><span class="fl">2</span>) <span class="co"># shift y lags</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>      xt[i] <span class="op">=</span> xt[i<span class="op">-</span><span class="fl">1</span>]</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>    xt[<span class="fl">3</span>] <span class="op">=</span> y</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> i <span class="op">=</span> <span class="fl">3</span><span class="op">:</span>(P<span class="op">+</span><span class="fl">2</span>)</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>     <span class="cf">for</span> j <span class="op">=</span> <span class="fl">1</span><span class="op">:</span>(i<span class="op">-</span><span class="fl">1</span>)</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>       xx[i,j] <span class="op">=</span> xx[j,i]</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>     <span class="cf">end</span></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>  ixx <span class="op">=</span> <span class="fu">inv</span>(xx)</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>  θ<span class="fl">3</span> <span class="op">=</span> <span class="fu">zero</span>(R)</span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> i <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>    θ<span class="fl">3</span> <span class="op">+=</span> ixx[<span class="fl">3</span>,i]<span class="op">*</span>xy[i]</span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>  ee <span class="op">=</span> yy</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> i <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>      ee <span class="op">-=</span> xy[i]<span class="op">*</span>ixx[i,j]<span class="op">*</span>xy[j]</span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>  se3 <span class="op">=</span> CUDA.<span class="fu">sqrt</span>(ixx[<span class="fl">3</span>,<span class="fl">3</span>]<span class="op">*</span>ee<span class="op">/</span>(<span class="fu">T-</span>(<span class="fl">2</span><span class="op">*</span>P<span class="op">+</span><span class="fl">2</span>)))</span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>  bootq[b,ak]  <span class="op">=</span> θ<span class="fl">3</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>  bootse[b,ak] <span class="op">=</span> se3</span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>  ba[b,ak] <span class="op">=</span> bootq[b,ak] <span class="op">-</span> αgrid[ak]</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> <span class="cn">nothing</span></span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="cf">begin</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  grid <span class="op">=</span> <span class="fu">argridbootstrap_gpu</span>(est.<span class="cn">e</span>, y0, grid<span class="op">=</span>αgrid, nboot<span class="op">=</span>nboot, RealType<span class="op">=</span><span class="dt">Float64</span>);</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>BenchmarkTools.Trial: 2387 samples with 1 evaluation.
+ Range (min … max):  1.478 ms … 23.069 ms  ┊ GC (min … max): 0.00% … 52.95%
+ Time  (median):     1.947 ms              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   2.073 ms ±  1.657 ms  ┊ GC (mean ± σ):  4.00% ±  4.56%
+
+                           ▁▁▁▃▆█▃                            
+  ▂▂▁▂▂▂▂▂▂▂▂▃▃▃▂▃▃▄▅▇▇▇▆▇▆███████▆▄▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
+  1.48 ms        Histogram: frequency by time        2.46 ms &lt;
+
+ Memory estimate: 569.27 KiB, allocs estimate: 229.</code></pre>
+<p>Compared to the fastest CPU code above, the GPU version takes about 1/20th the time of the single-threaded CPU code, and is about 33% faster than the the 40-threaded CPU code. Considering that the two CPUs in my workstation together cost about 6 times more than the single GPU, the performance of the GPU code is quite good. Also, we carefully profiled and tuned the CPU code, but not the GPU code (although the GPU code does use all algorithmic improvements of the fastest CPU code). Profiling GPU kernel code requires using Nvidia’s profiler, see <a href="https://cuda.juliagpu.org/stable/development/profiling/">CUDA.jl documentation</a> for information.</p>
+
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" role="list">
+<div id="ref-rackauckas2019c" class="csl-entry" role="listitem">
+Rackauckas, Chris. 2019. <span>“The Different Flavors of Parallelism.”</span> <a href="https://mitmath.github.io/18337/lecture6/styles_of_parallelism">https://mitmath.github.io/18337/lecture6/styles_of_parallelism</a>.
+</div>
+</div></section><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Processor registers are the fastest bits of memory on the processor, and registers are where the actual addition, multiplication, and other instructions are carried out.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>If you create StaticArrays inside a loop, they get allocated to the GPU’s “dynamic shared memory.” I believe a new allocation happens each loop iteration. This will be slow, and there is a fairly small amount of dynamic shared memory, of which you will soon run out.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>There are situations where allocating shared memory is needed and a good idea, but these require some advanced techniques that we will not cover.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
