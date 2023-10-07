@@ -154,6 +154,10 @@ div.csl-indent {
  <span class="menu-text">Using GPUs</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="./assignment.html" rel="" target="">
+ <span class="menu-text">More Examples</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="./license.html" rel="" target="">
  <span class="menu-text">License</span></a>
   </li>  
@@ -259,14 +263,14 @@ div.csl-indent {
 <pre><code>cuarraydemo (generic function with 1 method)</code></pre>
 <div class="sourceCode" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>julia<span class="op">&gt;</span> <span class="fu">cuarraydemo</span>(N,M);</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Time</span> on CPU</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.017174</span> seconds (<span class="fl">3</span> allocations<span class="op">:</span> <span class="fl">7.645</span> MiB)</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.008491</span> seconds (<span class="fl">3</span> allocations<span class="op">:</span> <span class="fl">7.645</span> MiB)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.006783</span> seconds (<span class="fl">3</span> allocations<span class="op">:</span> <span class="fl">7.645</span> MiB)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.004896</span> seconds (<span class="fl">3</span> allocations<span class="op">:</span> <span class="fl">7.645</span> MiB)</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>Computations on the GPU are fast</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000287</span> seconds (<span class="fl">80</span> allocations<span class="op">:</span> <span class="fl">3.125</span> KiB)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000218</span> seconds (<span class="fl">80</span> allocations<span class="op">:</span> <span class="fl">3.125</span> KiB)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000337</span> seconds (<span class="fl">80</span> allocations<span class="op">:</span> <span class="fl">3.125</span> KiB)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000214</span> seconds (<span class="fl">80</span> allocations<span class="op">:</span> <span class="fl">3.125</span> KiB)</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>But copying to and from GPU memory is not</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.001545</span> seconds (<span class="fl">102</span> allocations<span class="op">:</span> <span class="fl">19.578</span> KiB)</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.001167</span> seconds (<span class="fl">102</span> allocations<span class="op">:</span> <span class="fl">19.578</span> KiB)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.001448</span> seconds (<span class="fl">102</span> allocations<span class="op">:</span> <span class="fl">19.578</span> KiB)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.001112</span> seconds (<span class="fl">102</span> allocations<span class="op">:</span> <span class="fl">19.578</span> KiB)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p><code>CuArray</code>s also allow indexing, so you could use loops and other constructs. However, this will not be fast. <code>CuArray</code>s by itself will be a good method to utilize GPUs when the code is dominated by operations on large arrays.</p>
 <p>Unfortunately, the fastest version of our grid bootstrap code does not fit that description. A loop seems needed to generate <span class="math inline">\(y\)</span> due to the recursiveness of the AR(1) model. The fastest version of the code above involves many operations on small 3x3 arrays.</p>
 <p>EXERCISE: modify <code>b_est_original</code> or <code>b_est_mldivide</code> to utilize <code>CuArray</code>s. The approach taken in those functions involves some moderate sized matrices, so it may benefit from <code>CuArray</code>s.</p>
@@ -328,10 +332,10 @@ Maximum registers per block 65536</code></pre>
 <pre><code>cuarray_cudanative_compare (generic function with 1 method)</code></pre>
 <div class="sourceCode" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>julia<span class="op">&gt;</span> <span class="fu">cuarray_cudanative_compare</span>(<span class="fu">randn</span>(N,M))</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>CUDAnative square!</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000194</span> seconds (<span class="fl">8</span> allocations<span class="op">:</span> <span class="fl">400</span> bytes)</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000129</span> seconds (<span class="fl">8</span> allocations<span class="op">:</span> <span class="fl">400</span> bytes)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000142</span> seconds (<span class="fl">8</span> allocations<span class="op">:</span> <span class="fl">400</span> bytes)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000128</span> seconds (<span class="fl">8</span> allocations<span class="op">:</span> <span class="fl">400</span> bytes)</span>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>CuArray A<span class="op">*=</span>A</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000201</span> seconds (<span class="fl">31</span> allocations<span class="op">:</span> <span class="fl">2.109</span> KiB)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000220</span> seconds (<span class="fl">31</span> allocations<span class="op">:</span> <span class="fl">2.109</span> KiB)</span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fl">0.000135</span> seconds (<span class="fl">31</span> allocations<span class="op">:</span> <span class="fl">2.109</span> KiB)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 <section id="kernel-limitations" class="level3">
