@@ -1,0 +1,163 @@
+---
+title       : "Coding for Performance"
+subtitle    : "4: More Examples"
+author      : Paul Schrimpf
+date        : `j using Dates; print(Dates.today())`
+bibliography: "perf.bib"
+---
+
+For the assignment, most students focused on optimizing either the [`share` function](https://github.com/ubcecon/ECON622_BLP.jl/blob/01fbfd6547ba789b38ccc7252de38a0e2f4188ee/src/blp.jl#L24) from our earlier BLP example, 
+or the [`statparts` function from GMMInference](https://github.com/schrimpf/GMMInference.jl/blob/9f850d176001e9650b24fe33a7bf14692a817c69/src/HypothesisTests/CLR_KLM.jl#L32). 
+
+Let's see how we can improve these functions' performance.
+
+# `share`
+
+Here's a copy of the original version of the share function
+
+```julia
+function share(δ, Σ, x, ∫)
+  J,K = size(x)
+  (length(δ) == J) || error("length(δ)=$(length(δ)) != size(x,1)=$J")
+  (K,K) == size(Σ) || error("size(x,2)=$K != size(Σ)=$(size(Σ))")
+  function shareν(ν)
+    s = δ .+ x*Σ*ν
+    smax=max(0,maximum(s))
+    s .-= smax
+    s .= exp.(s)
+    s ./= (sum(s) + exp(0-smax))
+    return(s)
+  end
+  return(∫(shareν))
+end
+```
+and a simple function for the integral. 
+```julia
+struct Integrator{Tx, Tw}
+    x::Tx
+    w::Tw
+end
+
+function Integrator(dx::Distribution, n=100)
+    x = [rand(dx) for _ in 1:n]
+    w = Base.Iterators.Repeated(1/n)
+    Integrator(x,w)
+end
+
+(∫::Integrator)(f) = sum((xw)->f(xw[1])*xw[2], zip(∫.x, ∫.w))
+```
+For simplicity and to focus on the share function, we just use Monte Carlo integration since its easy to implement, but we could get more accuracy by using quasi monte carlo or quadrature. 
+
+## Initial Benchmark
+
+```julia
+using LinearAlgebra, Distributions, Random, BenchmarkTools, Profile, ProfileCanvas
+```
+```julia; cache=true
+J = 10
+K = 5
+δ = rand(J)
+X = randn(J,K)
+Σ = I + zeros(K,K)
+∫ = Integrator(MvNormal(zeros(K),I))
+@benchmark share(δ,Σ,X,∫)
+```
+
+```julia; echo=false; results="hidden"
+using ProfileCanvas
+function profilehtmlstring() 
+  buf = IOBuffer()
+  show(buf, MIME("text/html"), ProfileCanvas.view(Profile.fetch()))
+  s=String(take!(buf))
+  println("\n\n"*s*"\n")
+end
+```
+Profiling it:
+
+```julia; cache=true
+using Profile
+Profile.clear();
+Profile.init(n=10^7,delay=0.00001);
+@profile sum(share(δ,Σ,X,∫) for i ∈ 1:1000)
+profilehtmlstring()
+```
+
+## LoopVectorization
+
+Examining the profile, we see that the multiplication of `x*Σ*ν` is the single most costly operation. 
+The second most costly are lines computing the softmax function, `exp.(s)./(1 .+exp.(s))`
+
+```julia; cache=true
+using LoopVectorization
+
+@inline function dplusxMy(d::AbstractVector,x::AbstractMatrix,M::AbstractMatrix,y::AbstractVector) 
+  out = similar(d)
+  @turbo for i ∈ axes(x,1)
+    r = d[i]
+    for j ∈ axes(x,2)
+      for k ∈ axes(M,2)
+        r += x[i,j]*M[j,k]*y[k]
+      end
+    end
+    out[i] = r
+  end
+  out
+end
+@inline function softmax0!(s)
+  smax=@turbo reduce(max, s, init=zero(eltype(s)))
+  s .= exp.(s .- smax)
+  s ./= (sum(s) + exp(zero(smax)-smax))
+  return(s)
+end
+function share_v2(δ, Σ, x, ∫)
+  J,K = size(x)
+  (length(δ) == J) || error("length(δ)=$(length(δ)) != size(x,1)=$J")
+  (K,K) == size(Σ) || error("size(x,2)=$K != size(Σ)=$(size(Σ))")
+  function shareν(ν)
+    s = dplusxMy(δ,x,Σ,ν)
+    softmax0!(s)
+    s  
+  end
+  return(∫(shareν))
+end
+@benchmark share_v2(δ,Σ,X,∫)
+```
+
+By writing the `δ+x*Σ*ν` as loop we avoid some allocations, and can use `@turbo` to insert SIMD instructions. This gives a
+noticeable speedup. About half the gains here are from writing out the loops in `dplusxMy` and half from using `@turbo`. The changes 
+to the softmax calculation did not make much difference.
+
+```julia; cache=true
+using Profile
+Profile.clear();
+Profile.init(n=10^7,delay=0.00001);
+ProfileCanvas.@profview sum(share_v2(δ,Σ,X,∫) for i ∈ 1:1000)
+profilehtmlstring()
+```
+
+The execution time is still dominated by the two functions mentioned above. 
+
+## StaticArrays
+
+Since the calculations involve small arrays, it is likely to benefit from using `StaticArrays`. 
+
+```julia; cache=true
+using StaticArrays
+sδ = SVector{J}(δ)
+sΣ = SMatrix{K,K}(Σ)
+sX = SMatrix{J,K}(X)
+nd = length(∫.x)
+iw = SVector{nd}(fill(1/nd,nd))
+ix = [SVector{K}(x) for x ∈ ∫.x]
+s∫ = Integrator(ix,iw)
+@benchmark share_v2(sδ,sΣ,sX,s∫)
+```
+
+The code is now 4 times faster than what we started with. 
+
+Interestly, slightly better performance can be achieved by simply passing `StaticArrays` to the original code.
+
+```julia
+@benchmark share($(MVector(sδ)),sΣ,sX,s∫)
+```
+
