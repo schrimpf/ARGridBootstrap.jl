@@ -16,6 +16,8 @@ Let's see how we can improve these functions' performance.
 Here's a copy of the original version of the share function
 
 ```julia
+using LinearAlgebra, Distributions, Random, BenchmarkTools, Profile, ProfileCanvas
+
 function share(δ, Σ, x, ∫)
   J,K = size(x)
   (length(δ) == J) || error("length(δ)=$(length(δ)) != size(x,1)=$J")
@@ -50,16 +52,17 @@ For simplicity and to focus on the share function, we just use Monte Carlo integ
 
 ## Initial Benchmark
 
-```julia
-using LinearAlgebra, Distributions, Random, BenchmarkTools, Profile, ProfileCanvas
-```
-```julia; cache=true
+
+```julia; results="hidden"
 J = 10
 K = 5
 δ = rand(J)
 X = randn(J,K)
 Σ = I + zeros(K,K)
-∫ = Integrator(MvNormal(zeros(K),I))
+∫ = Integrator(MvNormal(zeros(K),I));
+```
+
+```julia; cache=true
 @benchmark share(δ,Σ,X,∫)
 ```
 
@@ -74,7 +77,7 @@ end
 ```
 Profiling it:
 
-```julia; cache=true
+```julia; cache=true; results="raw"
 using Profile
 Profile.clear();
 Profile.init(n=10^7,delay=0.00001);
@@ -127,7 +130,7 @@ By writing the `δ+x*Σ*ν` as loop we avoid some allocations, and can use `@tur
 noticeable speedup. About half the gains here are from writing out the loops in `dplusxMy` and half from using `@turbo`. The changes 
 to the softmax calculation did not make much difference.
 
-```julia; cache=true
+```julia; cache=true; results="raw"
 using Profile
 Profile.clear();
 Profile.init(n=10^7,delay=0.00001);
@@ -153,11 +156,233 @@ s∫ = Integrator(ix,iw)
 @benchmark share_v2(sδ,sΣ,sX,s∫)
 ```
 
-The code is now 4 times faster than what we started with. 
+The code is now 2 times faster than what we started with. 
 
 Interestly, slightly better performance can be achieved by simply passing `StaticArrays` to the original code.
 
 ```julia
-@benchmark share($(MVector(sδ)),sΣ,sX,s∫)
+@benchmark share($(MVector(sδ)),sΣ,sX,s∫) # δ gets mutated, so we must make it a Mutable SArray.
 ```
 
+## Non-allocating
+
+We can do still better by eliminating the allocations. With normal arrays, broadcast operations are usually non-allocating, and normal array operations allocate. 
+With `StaticArrays`, normal operatorations do not allocate.^[Like scalar variables, StaticArrays exist on the stack instead of the heap, so creating them is much less costly and they do not count toward the reported allocations.]
+```julia
+function share_v3(δ, Σ, x, ∫)
+  J,K = size(x)
+  (length(δ) == J) || error("length(δ)=$(length(δ)) != size(x,1)=$J")
+  (K,K) == size(Σ) || error("size(x,2)=$K != size(Σ)=$(size(Σ))")
+  function shareν(ν)
+    s = δ + x*Σ*ν
+    smax=max(0,maximum(s))
+    s -= smax*ones(typeof(s))
+    s = exp.(s)
+    s *= 1/(sum(s) + exp(0-smax))
+    return(s)
+  end
+  return(∫(shareν))
+end
+```
+
+```julia
+@benchmark share_v3(sδ,sΣ,sX,s∫)
+```
+
+The code is now 5 times faster than the original, and only allocates once (to store the return value). If one wanted to optimize further, you could still parallelized the sum in the integral. 
+You could try using the `VectorizedReduction`. to execute the sum using SIMD instructions, or multi-thread the loop following the pattern suggested in [the Julia documentation](https://docs.julialang.org/en/v1/manual/multi-threading/#Using-@threads-without-data-races). 
+There are also multiple packages that provide threaded reductions.
+
+I suspect the loop is too small to see gains from multithreading, but I am not certain.
+
+# `statparts`
+
+A few people worked on optimizing the `klm` or `clr` function from [GMMInference.jl](https://github.com/schrimpf/GMMInference.jl). 
+Here is the original code for `klm`.
+```julia
+using ForwardDiff
+function statparts(gi::Function)
+  function P(A::AbstractMatrix) # projection matrix
+    A*pinv(A'*A)*A'
+  end
+  function(θ)
+    giθ = gi(θ)
+    p = length(θ)    
+    (n, k) = size(giθ)
+    Ω = cov(giθ)  
+    gn=mean(gi(θ), dims=1)'
+    Gi= ForwardDiff.jacobian(gi,θ)
+    Gi = reshape(Gi, n , k, p)
+    G = mean(Gi, dims=1)
+    Γ = zeros(eltype(Gi),p,k,k)
+    D = zeros(eltype(Gi),k, p)
+    for j in 1:p
+      for i in 1:n
+        Γ[j,:,:] += (Gi[i,:,j] .- G[1,:,j]) * giθ[i,:]'
+      end
+      Γ[j,:,:] ./= n
+      D[:,j] = G[1,:,j] - Γ[j,:,:]*inv(Ω)*gn
+    end
+    return(n,k,p,gn, Ω, D, P)
+  end
+end
+
+function klm(gi::Function)
+  SP = statparts(gi)
+  function(θ)
+    (n,k,p,gn, Ω, D, P) = SP(θ)
+    return n*(gn'*Ω^(-1/2)*P(Ω^(-1/2)*D)*Ω^(-1/2)*gn)[1]
+  end
+end
+```
+To run the code, we need an example `gi` function. We'll just copy the example from [the docs](https://schrimpf.github.io/GMMInference.jl/dev/identificationRobustInference/#Example:-IV-logit-demand).
+```julia
+import Random
+function simulate_ivshare(n,β,γ,ρ)
+  z = randn(n, size(γ)[1])
+  endo = randn(n, length(β))
+  x = z*γ .+ endo
+  ξ = rand(Normal(0,sqrt((1.0-ρ^2))),n).+endo[:,1]*ρ
+  y = cdf.(Logistic(), x*β .+ ξ)
+  return((y=y,x=x,z=z))
+end
+n = 100
+k = 2
+iv = 3
+β0 = ones(k)
+π0 = vcat(5*I,ones(iv-k,k))
+ρ = 0.5
+Random.seed!(622)
+(y,x,z) = simulate_ivshare(n,β0,π0,ρ)
+
+function gi_ivshare(β,y,x,z)
+  ξ = quantile.(Logistic(),y) .- x*β
+  ξ.*z
+end
+
+gi = let y=y, x=x, z=z
+  β->gi_ivshare(β,y,x,z)
+end
+```
+
+## Initial Benchmark
+```julia
+@benchmark klm(gi)(β0)
+```
+
+## Fixing Type Instabilities
+
+From `@code_warntype`, we see that the compiles is unable to infer the type of some variables. The problem seems to start with `D`.  This is quite puzzling because `D` is explicitly initialized as `zeros(eltype(Gi),...).`
+```julia
+@code_warntype klm(gi)(β0)
+```
+To investigate further, let us focus on `statparts`.
+
+```julia
+@code_warntype statparts(gi)(β0)
+```
+We see that `G`, `Gi`, `Γ`, and `D` are all type `Any`.  For some reason, the return value of `ForwardDiff.jacobian` is not being inferred. We can workaround this by using an `jacobian!` instead.
+
+```julia
+function statparts(gi::F) where {F <: Function}
+  function P(A::AbstractMatrix) # projection matrix
+    A*pinv(A'*A)*A'
+  end
+  let gi=gi 
+    function(θ)
+      giθ = gi(θ)
+      p = length(θ)    
+      (n, k) = size(giθ)
+      Ω = Hermitian(cov(giθ))
+      gn=mean(gi(θ), dims=1)'
+      Gi = zeros(n,k,p)
+      ForwardDiff.jacobian!(Gi,gi,θ)
+      Gi = reshape(Gi, n , k, p)
+      G = mean(Gi, dims=1)
+      Γ = zeros(eltype(Gi),p,k,k)
+      D = zeros(eltype(Gi),k, p)
+      for j in 1:p
+        for i in 1:n
+          Γ[j,:,:] += (Gi[i,:,j] .- G[1,:,j]) * giθ[i,:]'
+        end
+        Γ[j,:,:] ./= n
+        D[:,j] = G[1,:,j] - Γ[j,:,:]*inv(Ω)*gn
+      end
+      return(n,k,p,gn, Ω, D, P)
+    end
+  end
+end
+@code_warntype statparts(gi)(β0)
+```
+
+I also added the `where {F` statement to [ensure compiler specialization](https://docs.julialang.org/en/v1/manual/performance-tips/#Be-aware-of-when-Julia-avoids-specializing), and 
+added the `let gi=gi` line to help [with the performance of captured variables](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured). 
+
+```julia
+@code_warntype klm(gi)(β0)
+```
+There's still a type-instability in `klm`. This one is harder to understand. It is due to the fact that the appropriate meaning of a matrix square root depends on the nature of the matrix. 
+In particular, the value could be a complex valued matrix instead of real valued. 
+We know that Ω should be positive definite with a real matrix square root. We can compute its square root from its Eigen decomposition and avoid the type instability. 
+
+```julia
+function klm(gi::F ) where {F <: Function} 
+  let gi=gi
+    function(θ)
+      (n,k,p,gn, Ω, D, P) = statparts(gi)(θ)
+      λ, v = eigen(Ω)
+      irΩ = v*diagm(λ.^(-1/2))*v'
+      return n*(gn'*irΩ*P(irΩ*D)*irΩ*gn)[1]
+    end
+  end
+end
+@code_warntype klm(gi)(β0)
+```
+
+Fixing these type instabilities speeds up the code by a factor of about 5.
+
+```julia
+@benchmark klm(gi)(β0)
+```
+
+## Reducing allocations and Other Optimizations
+
+Profiling reveals the majority of time is spent in the innermost loop of the `statparts` function. 
+This loop allocates quite a bit because the arrays are using slices. We can avoid allocations by using `@views` and more broadcasting.
+See ["Consider using views for slices"](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-views) and
+["More dots"](https://docs.julialang.org/en/v1/manual/performance-tips/#More-dots:-Fuse-vectorized-operations),
+
+```julia
+function statparts(gi::F) where {F <: Function}
+  function P(A::AbstractMatrix) # projection matrix
+    A*pinv(A'*A)*A'
+  end
+  let gi=gi 
+    function(θ)
+      giθ = gi(θ)
+      p = length(θ)    
+      (n, k) = size(giθ)
+      Ω = Hermitian(cov(giθ))
+      gn=mean(gi(θ), dims=1)'
+      iΩgn = Ω \ gn      
+      Gi = zeros(n,k,p)
+      ForwardDiff.jacobian!(Gi,gi,θ)
+      Gi = reshape(Gi, n , k, p)
+      G = mean(Gi, dims=1)
+      Γ = zeros(eltype(Gi),p,k,k)
+      D = zeros(eltype(Gi),k, p)
+      @inbounds for j in 1:p
+        @inbounds for i in 1:n
+          @views Γ[j,:,:] .+= (Gi[i,:,j] .- G[1,:,j]) * giθ[i,:]'
+        end
+        Γ[j,:,:] ./= n
+        @views D[:,j] .= G[1,:,j] .- Γ[j,:,:]*iΩgn
+      end
+      return(n,k,p,gn, Ω, D, P)
+    end
+  end
+end
+@benchmark klm(gi)(β0)
+```
+
+The code is now about ten times faster than the original.
