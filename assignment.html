@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Paul Schrimpf">
-<meta name="dcterms.date" content="2023-10-06">
+<meta name="dcterms.date" content="2023-10-09">
 
 <title>ARGridBootstrap - Coding for Performance</title>
 <style>
@@ -161,6 +161,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#initial-benchmark" id="toc-initial-benchmark" class="nav-link" data-scroll-target="#initial-benchmark">Initial Benchmark</a></li>
   <li><a href="#loopvectorization" id="toc-loopvectorization" class="nav-link" data-scroll-target="#loopvectorization">LoopVectorization</a></li>
   <li><a href="#staticarrays" id="toc-staticarrays" class="nav-link" data-scroll-target="#staticarrays">StaticArrays</a></li>
+  <li><a href="#non-allocating" id="toc-non-allocating" class="nav-link" data-scroll-target="#non-allocating">Non-allocating</a></li>
+  </ul></li>
+  <li><a href="#statparts" id="toc-statparts" class="nav-link" data-scroll-target="#statparts"><code>statparts</code></a>
+  <ul class="collapse">
+  <li><a href="#initial-benchmark-1" id="toc-initial-benchmark-1" class="nav-link" data-scroll-target="#initial-benchmark-1">Initial Benchmark</a></li>
+  <li><a href="#fixing-type-instabilities" id="toc-fixing-type-instabilities" class="nav-link" data-scroll-target="#fixing-type-instabilities">Fixing Type Instabilities</a></li>
+  <li><a href="#reducing-allocations-and-other-optimizations" id="toc-reducing-allocations-and-other-optimizations" class="nav-link" data-scroll-target="#reducing-allocations-and-other-optimizations">Reducing allocations and Other Optimizations</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -188,7 +195,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">October 6, 2023</p>
+      <p class="date">October 9, 2023</p>
     </div>
   </div>
   
@@ -5663,27 +5670,771 @@ line":983,"count":49,"countLabel":null,"flags":16,"taskId":null,"children":
   19.5 μs       Histogram: log(frequency) by time      42.7 μs &lt;
 
  Memory estimate: 28.03 KiB, allocs estimate: 299.</code></pre>
-<p>The code is now 4 times faster than what we started with.</p>
+<p>The code is now 2 times faster than what we started with.</p>
 <p>Interestly, slightly better performance can be achieved by simply passing <code>StaticArrays</code> to the original code.</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="fu">share</span>(<span class="op">$</span>(<span class="fu">MVector</span>(sδ)),sΣ,sX,s∫)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="fu">share</span>(<span class="op">$</span>(<span class="fu">MVector</span>(sδ)),sΣ,sX,s∫) <span class="co"># δ gets mutated, so we must make it a Mutable SArray.</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <pre><code>BenchmarkTools.Trial: 10000 samples with 1 evaluation.
- Range (min … max):  15.505 μs …   5.718 ms  ┊ GC (min … max):  0.00% … 98.
-59%
- Time  (median):     18.578 μs               ┊ GC (median):     0.00%
- Time  (mean ± σ):   23.958 μs ± 135.965 μs  ┊ GC (mean ± σ):  13.74% ±  2.
-41%
+ Range (min … max):  15.156 μs …  10.412 ms  ┊ GC (min … max):  0.00% … 99.
+22%
+ Time  (median):     18.927 μs               ┊ GC (median):     0.00%
+ Time  (mean ± σ):   27.332 μs ± 178.513 μs  ┊ GC (mean ± σ):  11.24% ±  1.
+72%
 
-        ▅█▁                                                     
-  ▂▃▃▃▃▅███▇▆▄▃▂▂▂▁▁▁▂▂▁▁▁▂▁▂▁▂▂▂▂▂▂▂▂▃▃▃▃▃▂▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
-  15.5 μs         Histogram: frequency by time         38.8 μs &lt;
+   ▂▃▃▃▂▅█▇▅▄▂▁                     ▅▅▄▆▅▄▄▄▃▃▃▃▂▂▁▁ ▁▁ ▁      ▂
+  ▄████████████▇▅▄▁▁▁▁▃▁▁▁▁▅▄▅▆▃▅▄▅▇██████████████████████▇▇▇▆ █
+  15.2 μs       Histogram: log(frequency) by time      40.2 μs &lt;
 
  Memory estimate: 28.03 KiB, allocs estimate: 299.</code></pre>
+</section>
+<section id="non-allocating" class="level2">
+<h2 class="anchored" data-anchor-id="non-allocating">Non-allocating</h2>
+<p>We can do still better by eliminating the allocations. With normal arrays, broadcast operations are usually non-allocating, and normal array operations allocate. With <code>StaticArrays</code>, normal operatorations do not allocate.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">share_v3</span>(δ, Σ, x, ∫)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  J,K <span class="op">=</span> <span class="fu">size</span>(x)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  (<span class="fu">length</span>(δ) <span class="op">==</span> J) <span class="op">||</span> <span class="fu">error</span>(<span class="st">"length(δ)=</span><span class="sc">$</span>(<span class="fu">length</span>(δ))<span class="st"> != size(x,1)=</span><span class="sc">$</span>J<span class="st">"</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  (K,K) <span class="op">==</span> <span class="fu">size</span>(Σ) <span class="op">||</span> <span class="fu">error</span>(<span class="st">"size(x,2)=</span><span class="sc">$</span>K<span class="st"> != size(Σ)=</span><span class="sc">$</span>(<span class="fu">size</span>(Σ))<span class="st">"</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span> <span class="fu">shareν</span>(ν)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    s <span class="op">=</span> δ <span class="op">+</span> x<span class="op">*</span>Σ<span class="op">*</span>ν</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    smax<span class="op">=</span><span class="fu">max</span>(<span class="fl">0</span>,<span class="fu">maximum</span>(s))</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>    s <span class="op">-=</span> <span class="fu">smax*ones</span>(<span class="fu">typeof</span>(s))</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    s <span class="op">=</span> <span class="fu">exp</span>.(s)</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    s <span class="op">*=</span> <span class="fl">1</span><span class="op">/</span>(<span class="fu">sum</span>(s) <span class="op">+</span> <span class="fu">exp</span>(<span class="fl">0</span><span class="op">-</span>smax))</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span>(s)</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span>(<span class="fu">∫</span>(shareν))</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>share_v3 (generic function with 1 method)</code></pre>
+<div class="sourceCode" id="cb19"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="fu">share_v3</span>(sδ,sΣ,sX,s∫)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>BenchmarkTools.Trial: 10000 samples with 1 evaluation.
+ Range (min … max):  10.616 μs … 42.115 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     11.314 μs              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   11.478 μs ±  1.170 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+               ▅ ▇ █ █ ▆ ▃ ▂ ▂ ▁ ▁ ▂ ▃ ▃ ▂ ▁ ▂ ▃ ▃ ▂ ▁     ▁  ▂
+  ▄▃▁▄▁▄▁▄▁▅▁▆▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁█▁▇▁█▁██ █
+  10.6 μs      Histogram: log(frequency) by time      12.7 μs &lt;
+
+ Memory estimate: 96 bytes, allocs estimate: 1.</code></pre>
+<p>The code is now 5 times faster than the original, and only allocates once (to store the return value). If one wanted to optimize further, you could still parallelized the sum in the integral. You could try using the <code>VectorizedReduction</code>. to execute the sum using SIMD instructions, or multi-thread the loop following the pattern suggested in <a href="https://docs.julialang.org/en/v1/manual/multi-threading/#Using-@threads-without-data-races">the Julia documentation</a>. There are also multiple packages that provide threaded reductions.</p>
+<p>I suspect the loop is too small to see gains from multithreading, but I am not certain.</p>
+</section>
+</section>
+<section id="statparts" class="level1">
+<h1><code>statparts</code></h1>
+<p>A few people worked on optimizing the <code>klm</code> or <code>clr</code> function from <a href="https://github.com/schrimpf/GMMInference.jl">GMMInference.jl</a>. Here is the original code for <code>klm</code>.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">ForwardDiff</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">statparts</span>(gi<span class="op">::</span><span class="dt">Function</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span> <span class="fu">P</span>(A<span class="op">::</span><span class="dt">AbstractMatrix</span>) <span class="co"># projection matrix</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">A*pinv</span>(A<span class="op">'*</span>A)<span class="op">*</span>A<span class="op">'</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span>(θ)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>    giθ <span class="op">=</span> <span class="fu">gi</span>(θ)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    p <span class="op">=</span> <span class="fu">length</span>(θ)    </span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    (n, k) <span class="op">=</span> <span class="fu">size</span>(giθ)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    Ω <span class="op">=</span> <span class="fu">cov</span>(giθ)  </span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>    gn<span class="op">=</span><span class="fu">mean</span>(<span class="fu">gi</span>(θ), dims<span class="op">=</span><span class="fl">1</span>)<span class="ch">'</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    Gi<span class="op">=</span> ForwardDiff.<span class="fu">jacobian</span>(gi,θ)</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>    Gi <span class="op">=</span> <span class="fu">reshape</span>(Gi, n , k, p)</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>    G <span class="op">=</span> <span class="fu">mean</span>(Gi, dims<span class="op">=</span><span class="fl">1</span>)</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>    Γ <span class="op">=</span> <span class="fu">zeros</span>(<span class="fu">eltype</span>(Gi),p,k,k)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    D <span class="op">=</span> <span class="fu">zeros</span>(<span class="fu">eltype</span>(Gi),k, p)</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>p</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>n</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>        Γ[j,<span class="op">:</span>,<span class="op">:</span>] <span class="op">+=</span> (Gi[i,<span class="op">:</span>,j] <span class="op">.-</span> G[<span class="fl">1</span>,<span class="op">:</span>,j]) <span class="op">*</span> giθ[i,<span class="op">:</span>]<span class="ch">'</span></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>      <span class="cf">end</span></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>      Γ[j,<span class="op">:</span>,<span class="op">:</span>] <span class="op">./=</span> n</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>      D[<span class="op">:</span>,j] <span class="op">=</span> G[<span class="fl">1</span>,<span class="op">:</span>,j] <span class="op">-</span> Γ[j,<span class="op">:</span>,<span class="op">:</span>]<span class="fu">*inv</span>(Ω)<span class="op">*</span>gn</span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span>(n,k,p,gn, Ω, D, P)</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">klm</span>(gi<span class="op">::</span><span class="dt">Function</span>)</span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>  SP <span class="op">=</span> <span class="fu">statparts</span>(gi)</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span>(θ)</span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>    (n,k,p,gn, Ω, D, P) <span class="op">=</span> <span class="fu">SP</span>(θ)</span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="fu">n*</span>(gn<span class="op">'*</span>Ω<span class="op">^</span>(<span class="op">-</span><span class="fl">1</span><span class="op">/</span><span class="fl">2</span>)<span class="fu">*P</span>(Ω<span class="op">^</span>(<span class="op">-</span><span class="fl">1</span><span class="op">/</span><span class="fl">2</span>)<span class="op">*</span>D)<span class="op">*</span>Ω<span class="op">^</span>(<span class="op">-</span><span class="fl">1</span><span class="op">/</span><span class="fl">2</span>)<span class="op">*</span>gn)[<span class="fl">1</span>]</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>klm (generic function with 1 method)</code></pre>
+<p>To run the code, we need an example <code>gi</code> function. We’ll just copy the example from <a href="https://schrimpf.github.io/GMMInference.jl/dev/identificationRobustInference/#Example:-IV-logit-demand">the docs</a>.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> <span class="bu">Random</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">simulate_ivshare</span>(n,β,γ,ρ)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  z <span class="op">=</span> <span class="fu">randn</span>(n, <span class="fu">size</span>(γ)[<span class="fl">1</span>])</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>  endo <span class="op">=</span> <span class="fu">randn</span>(n, <span class="fu">length</span>(β))</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  x <span class="op">=</span> z<span class="op">*</span>γ <span class="op">.+</span> endo</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  ξ <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">Normal</span>(<span class="fl">0</span>,<span class="fu">sqrt</span>((<span class="fl">1.0</span><span class="op">-</span>ρ<span class="op">^</span><span class="fl">2</span>))),n)<span class="op">.+</span>endo[<span class="op">:</span>,<span class="fl">1</span>]<span class="op">*</span>ρ</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  y <span class="op">=</span> <span class="fu">cdf</span>.(<span class="fu">Logistic</span>(), x<span class="op">*</span>β <span class="op">.+</span> ξ)</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span>((y<span class="op">=</span>y,x<span class="op">=</span>x,z<span class="op">=</span>z))</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="fl">100</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="fl">2</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>iv <span class="op">=</span> <span class="fl">3</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>β<span class="fl">0</span> <span class="op">=</span> <span class="fu">ones</span>(k)</span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>π<span class="fl">0</span> <span class="op">=</span> <span class="fu">vcat</span>(<span class="fl">5</span><span class="op">*</span>I,<span class="fu">ones</span>(iv<span class="op">-</span>k,k))</span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>ρ <span class="op">=</span> <span class="fl">0.5</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a><span class="bu">Random</span>.<span class="fu">seed!</span>(<span class="fl">622</span>)</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>(y,x,z) <span class="op">=</span> <span class="fu">simulate_ivshare</span>(n,β<span class="fl">0</span>,π<span class="fl">0</span>,ρ)</span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">gi_ivshare</span>(β,y,x,z)</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>  ξ <span class="op">=</span> <span class="fu">quantile</span>.(<span class="fu">Logistic</span>(),y) <span class="op">.-</span> x<span class="op">*</span>β</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>  ξ<span class="op">.*</span>z</span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>gi <span class="op">=</span> <span class="kw">let</span> y<span class="op">=</span>y, x<span class="op">=</span>x, z<span class="op">=</span>z</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">β-&gt;gi_ivshare</span>(β,y,x,z)</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>#158 (generic function with 1 method)</code></pre>
+<section id="initial-benchmark-1" class="level2">
+<h2 class="anchored" data-anchor-id="initial-benchmark-1">Initial Benchmark</h2>
+<div class="sourceCode" id="cb25"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>BenchmarkTools.Trial: 4612 samples with 1 evaluation.
+ Range (min … max):  979.682 μs …  14.765 ms  ┊ GC (min … max): 0.00% … 85.
+70%
+ Time  (median):       1.023 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):     1.074 ms ± 718.065 μs  ┊ GC (mean ± σ):  3.27% ±  4.
+55%
+
+   ▄█▁                                                           
+  ▃███▅▅▅▄▄▄▄▄▄▃▄▄▄▄▄▄▃▄▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁ ▂
+  980 μs           Histogram: frequency by time          1.2 ms &lt;
+
+ Memory estimate: 217.98 KiB, allocs estimate: 2968.</code></pre>
+</section>
+<section id="fixing-type-instabilities" class="level2">
+<h2 class="anchored" data-anchor-id="fixing-type-instabilities">Fixing Type Instabilities</h2>
+<p>From <code>@code_warntype</code>, we see that the compiles is unable to infer the type of some variables. The problem seems to start with <code>D</code>. This is quite puzzling because <code>D</code> is explicitly initialized as <code>zeros(eltype(Gi),...).</code></p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@code_warntype</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>MethodInstance for (::var"#156#157"{var"#153#155"{var"#158#159"{Vector{Floa
+t64}, Matrix{Float64}, Matrix{Float64}}, var"#P#154"}})(::Vector{Float64})
+  from (::var"#156#157")(θ) @ Main ~/.julia/dev/ARGridBootstrap/docs/jmd/as
+signment.jmd:31
+Arguments
+  #self#::var"#156#157"{var"#153#155"{var"#158#159"{Vector{Float64}, Matrix
+{Float64}, Matrix{Float64}}, var"#P#154"}}
+  θ::Vector{Float64}
+Locals
+  @_3::Int64
+  P::var"#P#154"
+  D::ANY
+  Ω::Matrix{Float64}
+  gn::Adjoint{Float64, Matrix{Float64}}
+  p::Int64
+  k::Int64
+  n::Int64
+Body::ANY
+1 ─ %1  = Core.getfield(#self#, :SP)::var"#153#155"{var"#158#159"{Vector{Fl
+oat64}, Matrix{Float64}, Matrix{Float64}}, var"#P#154"}
+│   %2  = (%1)(θ)::TUPLE{INT64, INT64, INT64, ADJOINT{FLOAT64, MATRIX{FLOAT
+64}}, MATRIX{FLOAT64}, ANY, VAR"#P#154"}
+│   %3  = Base.indexed_iterate(%2, 1)::Core.PartialStruct(Tuple{Int64, Int6
+4}, Any[Int64, Core.Const(2)])
+│         (n = Core.getfield(%3, 1))
+│         (@_3 = Core.getfield(%3, 2))
+│   %6  = Base.indexed_iterate(%2, 2, @_3::Core.Const(2))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(3)])
+│         (k = Core.getfield(%6, 1))
+│         (@_3 = Core.getfield(%6, 2))
+│   %9  = Base.indexed_iterate(%2, 3, @_3::Core.Const(3))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(4)])
+│         (p = Core.getfield(%9, 1))
+│         (@_3 = Core.getfield(%9, 2))
+│   %12 = Base.indexed_iterate(%2, 4, @_3::Core.Const(4))::Core.PartialStru
+ct(Tuple{Adjoint{Float64, Matrix{Float64}}, Int64}, Any[Adjoint{Float64, Ma
+trix{Float64}}, Core.Const(5)])
+│         (gn = Core.getfield(%12, 1))
+│         (@_3 = Core.getfield(%12, 2))
+│   %15 = Base.indexed_iterate(%2, 5, @_3::Core.Const(5))::Core.PartialStru
+ct(Tuple{Matrix{Float64}, Int64}, Any[Matrix{Float64}, Core.Const(6)])
+│         (Ω = Core.getfield(%15, 1))
+│         (@_3 = Core.getfield(%15, 2))
+│   %18 = Base.indexed_iterate(%2, 6, @_3::Core.Const(6))::Core.PartialStru
+ct(Tuple{Any, Int64}, Any[Any, Core.Const(7)])
+│         (D = Core.getfield(%18, 1))
+│         (@_3 = Core.getfield(%18, 2))
+│   %21 = Base.indexed_iterate(%2, 7, @_3::Core.Const(7))::Core.Const((var"
+#P#154"(), 8))
+│         (P = Core.getfield(%21, 1))
+│   %23 = n::Int64
+│   %24 = Main.:var"'"(gn)::Matrix{Float64}
+│   %25 = Ω::Matrix{Float64}
+│   %26 = (-1 / 2)::Core.Const(-0.5)
+│   %27 = (%25 ^ %26)::ANY
+│   %28 = Ω::Matrix{Float64}
+│   %29 = (-1 / 2)::Core.Const(-0.5)
+│   %30 = (%28 ^ %29)::ANY
+│   %31 = (%30 * D)::ANY
+│   %32 = (P)(%31)::ANY
+│   %33 = Ω::Matrix{Float64}
+│   %34 = (-1 / 2)::Core.Const(-0.5)
+│   %35 = (%33 ^ %34)::ANY
+│   %36 = (%24 * %27 * %32 * %35 * gn)::ANY
+│   %37 = Base.getindex(%36, 1)::ANY
+│   %38 = (%23 * %37)::ANY
+└──       return %38</code></pre>
+<p>To investigate further, let us focus on <code>statparts</code>.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@code_warntype</span> <span class="fu">statparts</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>MethodInstance for (::var"#153#155"{var"#158#159"{Vector{Float64}, Matrix{F
+loat64}, Matrix{Float64}}, var"#P#154"})(::Vector{Float64})
+  from (::var"#153#155")(θ) @ Main ~/.julia/dev/ARGridBootstrap/docs/jmd/as
+signment.jmd:7
+Arguments
+  #self#::var"#153#155"{var"#158#159"{Vector{Float64}, Matrix{Float64}, Mat
+rix{Float64}}, var"#P#154"}
+  θ::Vector{Float64}
+Locals
+  @_3::UNION{NOTHING, TUPLE{INT64, INT64}}
+  @_4::Int64
+  D::ANY
+  Γ::ANY
+  G::ANY
+  Gi::ANY
+  gn::Adjoint{Float64, Matrix{Float64}}
+  Ω::Matrix{Float64}
+  k::Int64
+  n::Int64
+  p::Int64
+  giθ::Matrix{Float64}
+  @_15::UNION{NOTHING, TUPLE{INT64, INT64}}
+  j::Int64
+  i::Int64
+Body::TUPLE{INT64, INT64, INT64, ADJOINT{FLOAT64, MATRIX{FLOAT64}}, MATRIX{
+FLOAT64}, ANY, VAR"#P#154"}
+1 ─ %1  = Core.getfield(#self#, :gi)::var"#158#159"{Vector{Float64}, Matrix
+{Float64}, Matrix{Float64}}
+│         (giθ = (%1)(θ))
+│         (p = Main.length(θ))
+│   %4  = Main.size(giθ)::Tuple{Int64, Int64}
+│   %5  = Base.indexed_iterate(%4, 1)::Core.PartialStruct(Tuple{Int64, Int6
+4}, Any[Int64, Core.Const(2)])
+│         (n = Core.getfield(%5, 1))
+│         (@_4 = Core.getfield(%5, 2))
+│   %8  = Base.indexed_iterate(%4, 2, @_4::Core.Const(2))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(3)])
+│         (k = Core.getfield(%8, 1))
+│         (Ω = Main.cov(giθ))
+│   %11 = Core.getfield(#self#, :gi)::var"#158#159"{Vector{Float64}, Matrix
+{Float64}, Matrix{Float64}}
+│   %12 = (%11)(θ)::Matrix{Float64}
+│   %13 = (:dims,)::Core.Const((:dims,))
+│   %14 = Core.apply_type(Core.NamedTuple, %13)::Core.Const(NamedTuple{(:di
+ms,)})
+│   %15 = Core.tuple(1)::Core.Const((1,))
+│   %16 = (%14)(%15)::Core.Const((dims = 1,))
+│   %17 = Core.kwcall(%16, Main.mean, %12)::Matrix{Float64}
+│         (gn = Main.:var"'"(%17))
+│   %19 = ForwardDiff.jacobian::Core.Const(ForwardDiff.jacobian)
+│   %20 = Core.getfield(#self#, :gi)::var"#158#159"{Vector{Float64}, Matrix
+{Float64}, Matrix{Float64}}
+│         (Gi = (%19)(%20, θ))
+│         (Gi = Main.reshape(Gi, n, k, p))
+│   %23 = (:dims,)::Core.Const((:dims,))
+│   %24 = Core.apply_type(Core.NamedTuple, %23)::Core.Const(NamedTuple{(:di
+ms,)})
+│   %25 = Core.tuple(1)::Core.Const((1,))
+│   %26 = (%24)(%25)::Core.Const((dims = 1,))
+│         (G = Core.kwcall(%26, Main.mean, Gi))
+│   %28 = Main.eltype(Gi)::ANY
+│   %29 = p::Int64
+│   %30 = k::Int64
+│         (Γ = Main.zeros(%28, %29, %30, k))
+│   %32 = Main.eltype(Gi)::ANY
+│   %33 = k::Int64
+│         (D = Main.zeros(%32, %33, p))
+│   %35 = (1:p)::Core.PartialStruct(UnitRange{Int64}, Any[Core.Const(1), In
+t64])
+│         (@_3 = Base.iterate(%35))
+│   %37 = (@_3 === nothing)::Bool
+│   %38 = Base.not_int(%37)::Bool
+└──       goto #7 if not %38
+2 ┄ %40 = @_3::Tuple{Int64, Int64}
+│         (j = Core.getfield(%40, 1))
+│   %42 = Core.getfield(%40, 2)::Int64
+│   %43 = (1:n)::Core.PartialStruct(UnitRange{Int64}, Any[Core.Const(1), In
+t64])
+│         (@_15 = Base.iterate(%43))
+│   %45 = (@_15 === nothing)::Bool
+│   %46 = Base.not_int(%45)::Bool
+└──       goto #5 if not %46
+3 ┄ %48 = @_15::Tuple{Int64, Int64}
+│         (i = Core.getfield(%48, 1))
+│   %50 = Core.getfield(%48, 2)::Int64
+│   %51 = Base.getindex(Γ, j, Main.:(:), Main.:(:))::ANY
+│   %52 = Main.:-::Core.Const(-)
+│   %53 = Base.getindex(Gi, i, Main.:(:), j)::ANY
+│   %54 = Base.getindex(G, 1, Main.:(:), j)::ANY
+│   %55 = Base.broadcasted(%52, %53, %54)::ANY
+│   %56 = Base.materialize(%55)::ANY
+│   %57 = Base.getindex(giθ, i, Main.:(:))::Vector{Float64}
+│   %58 = Main.:var"'"(%57)::Adjoint{Float64, Vector{Float64}}
+│   %59 = (%56 * %58)::ANY
+│   %60 = (%51 + %59)::ANY
+│         Base.setindex!(Γ, %60, j, Main.:(:), Main.:(:))
+│         (@_15 = Base.iterate(%43, %50))
+│   %63 = (@_15 === nothing)::Bool
+│   %64 = Base.not_int(%63)::Bool
+└──       goto #5 if not %64
+4 ─       goto #3
+5 ┄ %67 = Base.dotview(Γ, j, Main.:(:), Main.:(:))::ANY
+│   %68 = Main.:/::Core.Const(/)
+│   %69 = Base.getindex(Γ, j, Main.:(:), Main.:(:))::ANY
+│   %70 = Base.broadcasted(%68, %69, n)::ANY
+│         Base.materialize!(%67, %70)
+│   %72 = Base.getindex(G, 1, Main.:(:), j)::ANY
+│   %73 = Base.getindex(Γ, j, Main.:(:), Main.:(:))::ANY
+│   %74 = Main.inv(Ω)::Matrix{Float64}
+│   %75 = (%73 * %74 * gn)::ANY
+│   %76 = (%72 - %75)::ANY
+│         Base.setindex!(D, %76, Main.:(:), j)
+│         (@_3 = Base.iterate(%35, %42))
+│   %79 = (@_3 === nothing)::Bool
+│   %80 = Base.not_int(%79)::Bool
+└──       goto #7 if not %80
+6 ─       goto #2
+7 ┄ %83 = n::Int64
+│   %84 = k::Int64
+│   %85 = p::Int64
+│   %86 = gn::Adjoint{Float64, Matrix{Float64}}
+│   %87 = Ω::Matrix{Float64}
+│   %88 = D::ANY
+│   %89 = Core.getfield(#self#, :P)::Core.Const(var"#P#154"())
+│   %90 = Core.tuple(%83, %84, %85, %86, %87, %88, %89)::TUPLE{INT64, INT64
+, INT64, ADJOINT{FLOAT64, MATRIX{FLOAT64}}, MATRIX{FLOAT64}, ANY, VAR"#P#15
+4"}
+└──       return %90</code></pre>
+<p>We see that <code>G</code>, <code>Gi</code>, <code>Γ</code>, and <code>D</code> are all type <code>Any</code>. For some reason, the return value of <code>ForwardDiff.jacobian</code> is not being inferred. We can workaround this by using an <code>jacobian!</code> instead.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">statparts</span>(gi<span class="op">::</span><span class="dt">F</span>) <span class="kw">where</span> {F <span class="op">&lt;:</span><span class="dt"> Function</span>}</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span> <span class="fu">P</span>(A<span class="op">::</span><span class="dt">AbstractMatrix</span>) <span class="co"># projection matrix</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">A*pinv</span>(A<span class="op">'*</span>A)<span class="op">*</span>A<span class="op">'</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> gi<span class="op">=</span>gi </span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">function</span>(θ)</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>      giθ <span class="op">=</span> <span class="fu">gi</span>(θ)</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>      p <span class="op">=</span> <span class="fu">length</span>(θ)    </span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>      (n, k) <span class="op">=</span> <span class="fu">size</span>(giθ)</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>      Ω <span class="op">=</span> <span class="fu">Hermitian</span>(<span class="fu">cov</span>(giθ))</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>      gn<span class="op">=</span><span class="fu">mean</span>(<span class="fu">gi</span>(θ), dims<span class="op">=</span><span class="fl">1</span>)<span class="ch">'</span></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>      Gi <span class="op">=</span> <span class="fu">zeros</span>(n,k,p)</span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>      ForwardDiff.<span class="fu">jacobian!</span>(Gi,gi,θ)</span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>      Gi <span class="op">=</span> <span class="fu">reshape</span>(Gi, n , k, p)</span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>      G <span class="op">=</span> <span class="fu">mean</span>(Gi, dims<span class="op">=</span><span class="fl">1</span>)</span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>      Γ <span class="op">=</span> <span class="fu">zeros</span>(<span class="fu">eltype</span>(Gi),p,k,k)</span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>      D <span class="op">=</span> <span class="fu">zeros</span>(<span class="fu">eltype</span>(Gi),k, p)</span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> j <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>p</span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>n</span>
+<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a>          Γ[j,<span class="op">:</span>,<span class="op">:</span>] <span class="op">+=</span> (Gi[i,<span class="op">:</span>,j] <span class="op">.-</span> G[<span class="fl">1</span>,<span class="op">:</span>,j]) <span class="op">*</span> giθ[i,<span class="op">:</span>]<span class="ch">'</span></span>
+<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>        Γ[j,<span class="op">:</span>,<span class="op">:</span>] <span class="op">./=</span> n</span>
+<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a>        D[<span class="op">:</span>,j] <span class="op">=</span> G[<span class="fl">1</span>,<span class="op">:</span>,j] <span class="op">-</span> Γ[j,<span class="op">:</span>,<span class="op">:</span>]<span class="fu">*inv</span>(Ω)<span class="op">*</span>gn</span>
+<span id="cb31-24"><a href="#cb31-24" aria-hidden="true" tabindex="-1"></a>      <span class="cf">end</span></span>
+<span id="cb31-25"><a href="#cb31-25" aria-hidden="true" tabindex="-1"></a>      <span class="cf">return</span>(n,k,p,gn, Ω, D, P)</span>
+<span id="cb31-26"><a href="#cb31-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb31-27"><a href="#cb31-27" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb31-28"><a href="#cb31-28" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb31-29"><a href="#cb31-29" aria-hidden="true" tabindex="-1"></a><span class="pp">@code_warntype</span> <span class="fu">statparts</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>MethodInstance for (::var"#160#162"{var"#P#161", var"#158#159"{Vector{Float
+64}, Matrix{Float64}, Matrix{Float64}}})(::Vector{Float64})
+  from (::var"#160#162")(θ) @ Main ~/.julia/dev/ARGridBootstrap/docs/jmd/as
+signment.jmd:7
+Arguments
+  #self#::var"#160#162"{var"#P#161", var"#158#159"{Vector{Float64}, Matrix{
+Float64}, Matrix{Float64}}}
+  θ::Vector{Float64}
+Locals
+  @_3::UNION{NOTHING, TUPLE{INT64, INT64}}
+  @_4::Int64
+  D::Matrix{Float64}
+  Γ::Array{Float64, 3}
+  G::Array{Float64, 3}
+  Gi::Array{Float64, 3}
+  gn::Adjoint{Float64, Matrix{Float64}}
+  Ω::Hermitian{Float64, Matrix{Float64}}
+  k::Int64
+  n::Int64
+  p::Int64
+  giθ::Matrix{Float64}
+  @_15::UNION{NOTHING, TUPLE{INT64, INT64}}
+  j::Int64
+  i::Int64
+Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Hermiti
+an{Float64, Matrix{Float64}}, Matrix{Float64}, var"#P#161"}
+1 ─ %1  = Core.getfield(#self#, Symbol("#470#gi"))::var"#158#159"{Vector{Fl
+oat64}, Matrix{Float64}, Matrix{Float64}}
+│         (giθ = (%1)(θ))
+│         (p = Main.length(θ))
+│   %4  = Main.size(giθ)::Tuple{Int64, Int64}
+│   %5  = Base.indexed_iterate(%4, 1)::Core.PartialStruct(Tuple{Int64, Int6
+4}, Any[Int64, Core.Const(2)])
+│         (n = Core.getfield(%5, 1))
+│         (@_4 = Core.getfield(%5, 2))
+│   %8  = Base.indexed_iterate(%4, 2, @_4::Core.Const(2))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(3)])
+│         (k = Core.getfield(%8, 1))
+│   %10 = Main.cov(giθ)::Matrix{Float64}
+│         (Ω = Main.Hermitian(%10))
+│   %12 = Core.getfield(#self#, Symbol("#470#gi"))::var"#158#159"{Vector{Fl
+oat64}, Matrix{Float64}, Matrix{Float64}}
+│   %13 = (%12)(θ)::Matrix{Float64}
+│   %14 = (:dims,)::Core.Const((:dims,))
+│   %15 = Core.apply_type(Core.NamedTuple, %14)::Core.Const(NamedTuple{(:di
+ms,)})
+│   %16 = Core.tuple(1)::Core.Const((1,))
+│   %17 = (%15)(%16)::Core.Const((dims = 1,))
+│   %18 = Core.kwcall(%17, Main.mean, %13)::Matrix{Float64}
+│         (gn = Main.:var"'"(%18))
+│         (Gi = Main.zeros(n, k, p))
+│   %21 = ForwardDiff.jacobian!::Core.Const(ForwardDiff.jacobian!)
+│   %22 = Gi::Array{Float64, 3}
+│   %23 = Core.getfield(#self#, Symbol("#470#gi"))::var"#158#159"{Vector{Fl
+oat64}, Matrix{Float64}, Matrix{Float64}}
+│         (%21)(%22, %23, θ)
+│         (Gi = Main.reshape(Gi, n, k, p))
+│   %26 = (:dims,)::Core.Const((:dims,))
+│   %27 = Core.apply_type(Core.NamedTuple, %26)::Core.Const(NamedTuple{(:di
+ms,)})
+│   %28 = Core.tuple(1)::Core.Const((1,))
+│   %29 = (%27)(%28)::Core.Const((dims = 1,))
+│         (G = Core.kwcall(%29, Main.mean, Gi))
+│   %31 = Main.eltype(Gi)::Core.Const(Float64)
+│   %32 = p::Int64
+│   %33 = k::Int64
+│         (Γ = Main.zeros(%31, %32, %33, k))
+│   %35 = Main.eltype(Gi)::Core.Const(Float64)
+│   %36 = k::Int64
+│         (D = Main.zeros(%35, %36, p))
+│   %38 = (1:p)::Core.PartialStruct(UnitRange{Int64}, Any[Core.Const(1), In
+t64])
+│         (@_3 = Base.iterate(%38))
+│   %40 = (@_3 === nothing)::Bool
+│   %41 = Base.not_int(%40)::Bool
+└──       goto #7 if not %41
+2 ┄ %43 = @_3::Tuple{Int64, Int64}
+│         (j = Core.getfield(%43, 1))
+│   %45 = Core.getfield(%43, 2)::Int64
+│   %46 = (1:n)::Core.PartialStruct(UnitRange{Int64}, Any[Core.Const(1), In
+t64])
+│         (@_15 = Base.iterate(%46))
+│   %48 = (@_15 === nothing)::Bool
+│   %49 = Base.not_int(%48)::Bool
+└──       goto #5 if not %49
+3 ┄ %51 = @_15::Tuple{Int64, Int64}
+│         (i = Core.getfield(%51, 1))
+│   %53 = Core.getfield(%51, 2)::Int64
+│   %54 = Base.getindex(Γ, j, Main.:(:), Main.:(:))::Matrix{Float64}
+│   %55 = Main.:-::Core.Const(-)
+│   %56 = Base.getindex(Gi, i, Main.:(:), j)::Vector{Float64}
+│   %57 = Base.getindex(G, 1, Main.:(:), j)::Vector{Float64}
+│   %58 = Base.broadcasted(%55, %56, %57)::Base.Broadcast.Broadcasted{Base.
+Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Vector{Float64}, 
+Vector{Float64}}}
+│   %59 = Base.materialize(%58)::Vector{Float64}
+│   %60 = Base.getindex(giθ, i, Main.:(:))::Vector{Float64}
+│   %61 = Main.:var"'"(%60)::Adjoint{Float64, Vector{Float64}}
+│   %62 = (%59 * %61)::Matrix{Float64}
+│   %63 = (%54 + %62)::Matrix{Float64}
+│         Base.setindex!(Γ, %63, j, Main.:(:), Main.:(:))
+│         (@_15 = Base.iterate(%46, %53))
+│   %66 = (@_15 === nothing)::Bool
+│   %67 = Base.not_int(%66)::Bool
+└──       goto #5 if not %67
+4 ─       goto #3
+5 ┄ %70 = Base.dotview(Γ, j, Main.:(:), Main.:(:))::SubArray{Float64, 2, Ar
+ray{Float64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Bas
+e.OneTo{Int64}}}, true}
+│   %71 = Main.:/::Core.Const(/)
+│   %72 = Base.getindex(Γ, j, Main.:(:), Main.:(:))::Matrix{Float64}
+│   %73 = Base.broadcasted(%71, %72, n)::Base.Broadcast.Broadcasted{Base.Br
+oadcast.DefaultArrayStyle{2}, Nothing, typeof(/), Tuple{Matrix{Float64}, In
+t64}}
+│         Base.materialize!(%70, %73)
+│   %75 = Base.getindex(G, 1, Main.:(:), j)::Vector{Float64}
+│   %76 = Base.getindex(Γ, j, Main.:(:), Main.:(:))::Matrix{Float64}
+│   %77 = Main.inv(Ω::Core.PartialStruct(Hermitian{Float64, Matrix{Float64}
+}, Any[Matrix{Float64}, Core.Const('U')]))::Core.PartialStruct(Hermitian{Fl
+oat64, Matrix{Float64}}, Any[Matrix{Float64}, Core.Const('U')])
+│   %78 = (%76 * %77 * gn)::Matrix{Float64}
+│   %79 = (%75 - %78)::Matrix{Float64}
+│         Base.setindex!(D, %79, Main.:(:), j)
+│         (@_3 = Base.iterate(%38, %45))
+│   %82 = (@_3 === nothing)::Bool
+│   %83 = Base.not_int(%82)::Bool
+└──       goto #7 if not %83
+6 ─       goto #2
+7 ┄ %86 = n::Int64
+│   %87 = k::Int64
+│   %88 = p::Int64
+│   %89 = gn::Adjoint{Float64, Matrix{Float64}}
+│   %90 = Ω::Core.PartialStruct(Hermitian{Float64, Matrix{Float64}}, Any[Ma
+trix{Float64}, Core.Const('U')])
+│   %91 = D::Matrix{Float64}
+│   %92 = Core.getfield(#self#, :P)::Core.Const(var"#P#161"())
+│   %93 = Core.tuple(%86, %87, %88, %89, %90, %91, %92)::Core.PartialStruct
+(Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Hermitian{Fl
+oat64, Matrix{Float64}}, Matrix{Float64}, var"#P#161"}, Any[Int64, Int64, I
+nt64, Adjoint{Float64, Matrix{Float64}}, Core.PartialStruct(Hermitian{Float
+64, Matrix{Float64}}, Any[Matrix{Float64}, Core.Const('U')]), Matrix{Float6
+4}, var"#P#161"])
+└──       return %93</code></pre>
+<p>I also added the <code>where {F</code> statement to <a href="https://docs.julialang.org/en/v1/manual/performance-tips/#Be-aware-of-when-Julia-avoids-specializing">ensure compiler specialization</a>, and added the <code>let gi=gi</code> line to help <a href="https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured">with the performance of captured variables</a>.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@code_warntype</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>MethodInstance for (::var"#156#157"{var"#160#162"{var"#P#161", var"#158#159
+"{Vector{Float64}, Matrix{Float64}, Matrix{Float64}}}})(::Vector{Float64})
+  from (::var"#156#157")(θ) @ Main ~/.julia/dev/ARGridBootstrap/docs/jmd/as
+signment.jmd:31
+Arguments
+  #self#::var"#156#157"{var"#160#162"{var"#P#161", var"#158#159"{Vector{Flo
+at64}, Matrix{Float64}, Matrix{Float64}}}}
+  θ::Vector{Float64}
+Locals
+  @_3::Int64
+  P::var"#P#161"
+  D::Matrix{Float64}
+  Ω::Hermitian{Float64, Matrix{Float64}}
+  gn::Adjoint{Float64, Matrix{Float64}}
+  p::Int64
+  k::Int64
+  n::Int64
+Body::UNION{FLOAT64, COMPLEXF64}
+1 ─ %1  = Core.getfield(#self#, :SP)::var"#160#162"{var"#P#161", var"#158#1
+59"{Vector{Float64}, Matrix{Float64}, Matrix{Float64}}}
+│   %2  = (%1)(θ)::Core.PartialStruct(Tuple{Int64, Int64, Int64, Adjoint{Fl
+oat64, Matrix{Float64}}, Hermitian{Float64, Matrix{Float64}}, Matrix{Float6
+4}, var"#P#161"}, Any[Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}
+}, Core.PartialStruct(Hermitian{Float64, Matrix{Float64}}, Any[Matrix{Float
+64}, Core.Const('U')]), Matrix{Float64}, var"#P#161"])
+│   %3  = Base.indexed_iterate(%2, 1)::Core.PartialStruct(Tuple{Int64, Int6
+4}, Any[Int64, Core.Const(2)])
+│         (n = Core.getfield(%3, 1))
+│         (@_3 = Core.getfield(%3, 2))
+│   %6  = Base.indexed_iterate(%2, 2, @_3::Core.Const(2))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(3)])
+│         (k = Core.getfield(%6, 1))
+│         (@_3 = Core.getfield(%6, 2))
+│   %9  = Base.indexed_iterate(%2, 3, @_3::Core.Const(3))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(4)])
+│         (p = Core.getfield(%9, 1))
+│         (@_3 = Core.getfield(%9, 2))
+│   %12 = Base.indexed_iterate(%2, 4, @_3::Core.Const(4))::Core.PartialStru
+ct(Tuple{Adjoint{Float64, Matrix{Float64}}, Int64}, Any[Adjoint{Float64, Ma
+trix{Float64}}, Core.Const(5)])
+│         (gn = Core.getfield(%12, 1))
+│         (@_3 = Core.getfield(%12, 2))
+│   %15 = Base.indexed_iterate(%2, 5, @_3::Core.Const(5))::Core.PartialStru
+ct(Tuple{Hermitian{Float64, Matrix{Float64}}, Int64}, Any[Core.PartialStruc
+t(Hermitian{Float64, Matrix{Float64}}, Any[Matrix{Float64}, Core.Const('U')
+]), Core.Const(6)])
+│         (Ω = Core.getfield(%15, 1))
+│         (@_3 = Core.getfield(%15, 2))
+│   %18 = Base.indexed_iterate(%2, 6, @_3::Core.Const(6))::Core.PartialStru
+ct(Tuple{Matrix{Float64}, Int64}, Any[Matrix{Float64}, Core.Const(7)])
+│         (D = Core.getfield(%18, 1))
+│         (@_3 = Core.getfield(%18, 2))
+│   %21 = Base.indexed_iterate(%2, 7, @_3::Core.Const(7))::Core.Const((var"
+#P#161"(), 8))
+│         (P = Core.getfield(%21, 1))
+│   %23 = n::Int64
+│   %24 = Main.:var"'"(gn)::Matrix{Float64}
+│   %25 = Ω::Core.PartialStruct(Hermitian{Float64, Matrix{Float64}}, Any[Ma
+trix{Float64}, Core.Const('U')])
+│   %26 = (-1 / 2)::Core.Const(-0.5)
+│   %27 = (%25 ^ %26)::UNION{HERMITIAN{FLOAT64, MATRIX{FLOAT64}}, MATRIX{CO
+MPLEXF64}}
+│   %28 = Ω::Core.PartialStruct(Hermitian{Float64, Matrix{Float64}}, Any[Ma
+trix{Float64}, Core.Const('U')])
+│   %29 = (-1 / 2)::Core.Const(-0.5)
+│   %30 = (%28 ^ %29)::UNION{HERMITIAN{FLOAT64, MATRIX{FLOAT64}}, MATRIX{CO
+MPLEXF64}}
+│   %31 = (%30 * D)::UNION{MATRIX{COMPLEXF64}, MATRIX{FLOAT64}}
+│   %32 = (P)(%31)::UNION{MATRIX{COMPLEXF64}, MATRIX{FLOAT64}}
+│   %33 = Ω::Core.PartialStruct(Hermitian{Float64, Matrix{Float64}}, Any[Ma
+trix{Float64}, Core.Const('U')])
+│   %34 = (-1 / 2)::Core.Const(-0.5)
+│   %35 = (%33 ^ %34)::UNION{HERMITIAN{FLOAT64, MATRIX{FLOAT64}}, MATRIX{CO
+MPLEXF64}}
+│   %36 = (%24 * %27 * %32 * %35 * gn)::UNION{MATRIX{COMPLEXF64}, MATRIX{FL
+OAT64}}
+│   %37 = Base.getindex(%36, 1)::UNION{FLOAT64, COMPLEXF64}
+│   %38 = (%23 * %37)::UNION{FLOAT64, COMPLEXF64}
+└──       return %38</code></pre>
+<p>There’s still a type-instability in <code>klm</code>. This one is harder to understand. It is due to the fact that the appropriate meaning of a matrix square root depends on the nature of the matrix. In particular, the value could be a complex valued matrix instead of real valued. We know that Ω should be positive definite with a real matrix square root. We can compute its square root from its Eigen decomposition and avoid the type instability.</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">klm</span>(gi<span class="op">::</span><span class="dt">F </span>) <span class="kw">where</span> {F <span class="op">&lt;:</span><span class="dt"> Function</span>} </span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> gi<span class="op">=</span>gi</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">function</span>(θ)</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>      (n,k,p,gn, Ω, D, P) <span class="op">=</span> <span class="fu">statparts</span>(gi)(θ)</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>      λ, v <span class="op">=</span> <span class="fu">eigen</span>(Ω)</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>      irΩ <span class="op">=</span> <span class="fu">v*diagm</span>(λ<span class="op">.^</span>(<span class="op">-</span><span class="fl">1</span><span class="op">/</span><span class="fl">2</span>))<span class="op">*</span>v<span class="op">'</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>      <span class="cf">return</span> <span class="fu">n*</span>(gn<span class="op">'</span><span class="fu">*irΩ*P</span>(irΩ<span class="op">*</span>D)<span class="op">*</span>irΩ<span class="op">*</span>gn)[<span class="fl">1</span>]</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="pp">@code_warntype</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>MethodInstance for (::var"#163#164"{var"#158#159"{Vector{Float64}, Matrix{F
+loat64}, Matrix{Float64}}})(::Vector{Float64})
+  from (::var"#163#164")(θ) @ Main ~/.julia/dev/ARGridBootstrap/docs/jmd/as
+signment.jmd:4
+Arguments
+  #self#::var"#163#164"{var"#158#159"{Vector{Float64}, Matrix{Float64}, Mat
+rix{Float64}}}
+  θ::Vector{Float64}
+Locals
+  @_3::Val{:vectors}
+  @_4::Int64
+  irΩ::Matrix{Float64}
+  v::Matrix{Float64}
+  λ::Vector{Float64}
+  P::var"#P#161"
+  D::Matrix{Float64}
+  Ω::Hermitian{Float64, Matrix{Float64}}
+  gn::Adjoint{Float64, Matrix{Float64}}
+  p::Int64
+  k::Int64
+  n::Int64
+Body::Float64
+1 ─ %1  = Core.getfield(#self#, Symbol("#471#gi"))::var"#158#159"{Vector{Fl
+oat64}, Matrix{Float64}, Matrix{Float64}}
+│   %2  = Main.statparts(%1)::var"#160#162"{var"#P#161", var"#158#159"{Vect
+or{Float64}, Matrix{Float64}, Matrix{Float64}}}
+│   %3  = (%2)(θ)::Core.PartialStruct(Tuple{Int64, Int64, Int64, Adjoint{Fl
+oat64, Matrix{Float64}}, Hermitian{Float64, Matrix{Float64}}, Matrix{Float6
+4}, var"#P#161"}, Any[Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}
+}, Core.PartialStruct(Hermitian{Float64, Matrix{Float64}}, Any[Matrix{Float
+64}, Core.Const('U')]), Matrix{Float64}, var"#P#161"])
+│   %4  = Base.indexed_iterate(%3, 1)::Core.PartialStruct(Tuple{Int64, Int6
+4}, Any[Int64, Core.Const(2)])
+│         (n = Core.getfield(%4, 1))
+│         (@_4 = Core.getfield(%4, 2))
+│   %7  = Base.indexed_iterate(%3, 2, @_4::Core.Const(2))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(3)])
+│         (k = Core.getfield(%7, 1))
+│         (@_4 = Core.getfield(%7, 2))
+│   %10 = Base.indexed_iterate(%3, 3, @_4::Core.Const(3))::Core.PartialStru
+ct(Tuple{Int64, Int64}, Any[Int64, Core.Const(4)])
+│         (p = Core.getfield(%10, 1))
+│         (@_4 = Core.getfield(%10, 2))
+│   %13 = Base.indexed_iterate(%3, 4, @_4::Core.Const(4))::Core.PartialStru
+ct(Tuple{Adjoint{Float64, Matrix{Float64}}, Int64}, Any[Adjoint{Float64, Ma
+trix{Float64}}, Core.Const(5)])
+│         (gn = Core.getfield(%13, 1))
+│         (@_4 = Core.getfield(%13, 2))
+│   %16 = Base.indexed_iterate(%3, 5, @_4::Core.Const(5))::Core.PartialStru
+ct(Tuple{Hermitian{Float64, Matrix{Float64}}, Int64}, Any[Core.PartialStruc
+t(Hermitian{Float64, Matrix{Float64}}, Any[Matrix{Float64}, Core.Const('U')
+]), Core.Const(6)])
+│         (Ω = Core.getfield(%16, 1))
+│         (@_4 = Core.getfield(%16, 2))
+│   %19 = Base.indexed_iterate(%3, 6, @_4::Core.Const(6))::Core.PartialStru
+ct(Tuple{Matrix{Float64}, Int64}, Any[Matrix{Float64}, Core.Const(7)])
+│         (D = Core.getfield(%19, 1))
+│         (@_4 = Core.getfield(%19, 2))
+│   %22 = Base.indexed_iterate(%3, 7, @_4::Core.Const(7))::Core.Const((var"
+#P#161"(), 8))
+│         (P = Core.getfield(%22, 1))
+│   %24 = Main.eigen(Ω::Core.PartialStruct(Hermitian{Float64, Matrix{Float6
+4}}, Any[Matrix{Float64}, Core.Const('U')]))::Eigen{Float64, Float64, Matri
+x{Float64}, Vector{Float64}}
+│   %25 = Base.indexed_iterate(%24, 1)::Tuple{Vector{Float64}, Val{:vectors
+}}
+│         (λ = Core.getfield(%25, 1))
+│         (@_3 = Core.getfield(%25, 2))
+│   %28 = Base.indexed_iterate(%24, 2, @_3)::Tuple{Matrix{Float64}, Val{:do
+ne}}
+│         (v = Core.getfield(%28, 1))
+│   %30 = v::Matrix{Float64}
+│   %31 = Main.:^::Core.Const(^)
+│   %32 = λ::Vector{Float64}
+│   %33 = (-1 / 2)::Core.Const(-0.5)
+│   %34 = Base.broadcasted(%31, %32, %33)::Core.PartialStruct(Base.Broadcas
+t.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(^), Tupl
+e{Vector{Float64}, Float64}}, Any[Core.Const(^), Core.PartialStruct(Tuple{V
+ector{Float64}, Float64}, Any[Vector{Float64}, Core.Const(-0.5)]), Core.Con
+st(nothing)])
+│   %35 = Base.materialize(%34)::Vector{Float64}
+│   %36 = Main.diagm(%35)::Matrix{Float64}
+│   %37 = Main.:var"'"(v)::Adjoint{Float64, Matrix{Float64}}
+│         (irΩ = %30 * %36 * %37)
+│   %39 = n::Int64
+│   %40 = Main.:var"'"(gn)::Matrix{Float64}
+│   %41 = irΩ::Matrix{Float64}
+│   %42 = (irΩ * D)::Matrix{Float64}
+│   %43 = (P)(%42)::Matrix{Float64}
+│   %44 = irΩ::Matrix{Float64}
+│   %45 = (%40 * %41 * %43 * %44 * gn)::Matrix{Float64}
+│   %46 = Base.getindex(%45, 1)::Float64
+│   %47 = (%39 * %46)::Float64
+└──       return %47</code></pre>
+<p>Fixing these type instabilities speeds up the code by a factor of about 5.</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>BenchmarkTools.Trial: 10000 samples with 1 evaluation.
+ Range (min … max):  123.482 μs …  11.859 ms  ┊ GC (min … max):  0.00% … 91
+.21%
+ Time  (median):     140.803 μs               ┊ GC (median):     0.00%
+ Time  (mean ± σ):   178.543 μs ± 620.982 μs  ┊ GC (mean ± σ):  17.78% ±  5
+.04%
+
+            ▁▁▅███▂                                              
+  ▁▁▁▁▁▁▂▄▅▇███████▆▄▄▄▄▃▃▃▂▂▃▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁ ▂
+  123 μs           Histogram: frequency by time          194 μs &lt;
+
+ Memory estimate: 219.59 KiB, allocs estimate: 1514.</code></pre>
+</section>
+<section id="reducing-allocations-and-other-optimizations" class="level2">
+<h2 class="anchored" data-anchor-id="reducing-allocations-and-other-optimizations">Reducing allocations and Other Optimizations</h2>
+<p>Profiling reveals the majority of time is spent in the innermost loop of the <code>statparts</code> function. This loop allocates quite a bit because the arrays are using slices. We can avoid allocations by using <code>@views</code> and more broadcasting. See <a href="https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-views">“Consider using views for slices”</a> and <a href="https://docs.julialang.org/en/v1/manual/performance-tips/#More-dots:-Fuse-vectorized-operations">“More dots”</a>,</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">statparts</span>(gi<span class="op">::</span><span class="dt">F</span>) <span class="kw">where</span> {F <span class="op">&lt;:</span><span class="dt"> Function</span>}</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span> <span class="fu">P</span>(A<span class="op">::</span><span class="dt">AbstractMatrix</span>) <span class="co"># projection matrix</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">A*pinv</span>(A<span class="op">'*</span>A)<span class="op">*</span>A<span class="op">'</span></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> gi<span class="op">=</span>gi </span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">function</span>(θ)</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>      giθ <span class="op">=</span> <span class="fu">gi</span>(θ)</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>      p <span class="op">=</span> <span class="fu">length</span>(θ)    </span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>      (n, k) <span class="op">=</span> <span class="fu">size</span>(giθ)</span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>      Ω <span class="op">=</span> <span class="fu">Hermitian</span>(<span class="fu">cov</span>(giθ))</span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>      gn<span class="op">=</span><span class="fu">mean</span>(<span class="fu">gi</span>(θ), dims<span class="op">=</span><span class="fl">1</span>)<span class="ch">'</span></span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>      iΩgn <span class="op">=</span> Ω <span class="op">\</span> gn      </span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>      Gi <span class="op">=</span> <span class="fu">zeros</span>(n,k,p)</span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>      ForwardDiff.<span class="fu">jacobian!</span>(Gi,gi,θ)</span>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>      Gi <span class="op">=</span> <span class="fu">reshape</span>(Gi, n , k, p)</span>
+<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a>      G <span class="op">=</span> <span class="fu">mean</span>(Gi, dims<span class="op">=</span><span class="fl">1</span>)</span>
+<span id="cb39-17"><a href="#cb39-17" aria-hidden="true" tabindex="-1"></a>      Γ <span class="op">=</span> <span class="fu">zeros</span>(<span class="fu">eltype</span>(Gi),p,k,k)</span>
+<span id="cb39-18"><a href="#cb39-18" aria-hidden="true" tabindex="-1"></a>      D <span class="op">=</span> <span class="fu">zeros</span>(<span class="fu">eltype</span>(Gi),k, p)</span>
+<span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>      <span class="pp">@inbounds</span> <span class="cf">for</span> j <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>p</span>
+<span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a>        <span class="pp">@inbounds</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>n</span>
+<span id="cb39-21"><a href="#cb39-21" aria-hidden="true" tabindex="-1"></a>          <span class="pp">@views</span> Γ[j,<span class="op">:</span>,<span class="op">:</span>] <span class="op">.+=</span> (Gi[i,<span class="op">:</span>,j] <span class="op">.-</span> G[<span class="fl">1</span>,<span class="op">:</span>,j]) <span class="op">*</span> giθ[i,<span class="op">:</span>]<span class="ch">'</span></span>
+<span id="cb39-22"><a href="#cb39-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb39-23"><a href="#cb39-23" aria-hidden="true" tabindex="-1"></a>        Γ[j,<span class="op">:</span>,<span class="op">:</span>] <span class="op">./=</span> n</span>
+<span id="cb39-24"><a href="#cb39-24" aria-hidden="true" tabindex="-1"></a>        <span class="pp">@views</span> D[<span class="op">:</span>,j] <span class="op">.=</span> G[<span class="fl">1</span>,<span class="op">:</span>,j] <span class="op">.-</span> Γ[j,<span class="op">:</span>,<span class="op">:</span>]<span class="op">*</span>iΩgn</span>
+<span id="cb39-25"><a href="#cb39-25" aria-hidden="true" tabindex="-1"></a>      <span class="cf">end</span></span>
+<span id="cb39-26"><a href="#cb39-26" aria-hidden="true" tabindex="-1"></a>      <span class="cf">return</span>(n,k,p,gn, Ω, D, P)</span>
+<span id="cb39-27"><a href="#cb39-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb39-28"><a href="#cb39-28" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span></span>
+<span id="cb39-29"><a href="#cb39-29" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb39-30"><a href="#cb39-30" aria-hidden="true" tabindex="-1"></a><span class="pp">@benchmark</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>BenchmarkTools.Trial: 10000 samples with 1 evaluation.
+ Range (min … max):  66.211 μs …  10.476 ms  ┊ GC (min … max):  0.00% … 91.
+65%
+ Time  (median):     73.824 μs               ┊ GC (median):     0.00%
+ Time  (mean ± σ):   92.646 μs ± 406.681 μs  ┊ GC (mean ± σ):  16.39% ±  3.
+71%
+
+     ▂▃▄▅▇███▇▇▆▆▅▄▄▄▃▃▃▂▂▁▁▁▁▁▁▁▁ ▁▁▁▁▂▂▂▁▁▁                  ▃
+  ▄██████████████████████████████████████████▇██▇█▇▇▆▇▆▅▆▆▆▅▅▆ █
+  66.2 μs       Histogram: log(frequency) by time       106 μs &lt;
+
+ Memory estimate: 118.56 KiB, allocs estimate: 501.</code></pre>
+<p>The code is now about ten times faster than the original.</p>
 
 
 </section>
 </section>
 
-</main> <!-- /main -->
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Like scalar variables, StaticArrays exist on the stack instead of the heap, so creating them is much less costly and they do not count toward the reported allocations.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
   const toggleBodyColorMode = (bsSheetEl) => {
