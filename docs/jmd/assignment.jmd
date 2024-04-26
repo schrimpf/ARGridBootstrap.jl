@@ -6,8 +6,8 @@ date        : `j using Dates; print(Dates.today())`
 bibliography: "perf.bib"
 ---
 
-For the assignment, most students focused on optimizing either the [`share` function](https://github.com/ubcecon/ECON622_BLP.jl/blob/01fbfd6547ba789b38ccc7252de38a0e2f4188ee/src/blp.jl#L24) from our earlier BLP example, 
-or the [`statparts` function from GMMInference](https://github.com/schrimpf/GMMInference.jl/blob/9f850d176001e9650b24fe33a7bf14692a817c69/src/HypothesisTests/CLR_KLM.jl#L32). 
+For the assignment, most students focused on optimizing either the [`share` function](https://github.com/ubcecon/ECON622_BLP.jl/blob/01fbfd6547ba789b38ccc7252de38a0e2f4188ee/src/blp.jl#L24) from our earlier BLP example,
+or the [`statparts` function from GMMInference](https://github.com/schrimpf/GMMInference.jl/blob/9f850d176001e9650b24fe33a7bf14692a817c69/src/HypothesisTests/CLR_KLM.jl#L32).
 
 Let's see how we can improve these functions' performance.
 
@@ -33,7 +33,7 @@ function share(δ, Σ, x, ∫)
   return(∫(shareν))
 end
 ```
-and a simple function for the integral. 
+and a simple function for the integral.
 ```julia
 struct Integrator{Tx, Tw}
     x::Tx
@@ -48,7 +48,7 @@ end
 
 (∫::Integrator)(f) = sum((xw)->f(xw[1])*xw[2], zip(∫.x, ∫.w))
 ```
-For simplicity and to focus on the share function, we just use Monte Carlo integration since its easy to implement, but we could get more accuracy by using quasi monte carlo or quadrature. 
+For simplicity and to focus on the share function, we just use Monte Carlo integration since its easy to implement, but we could get more accuracy by using quasi monte carlo or quadrature.
 
 ## Initial Benchmark
 
@@ -68,7 +68,7 @@ X = randn(J,K)
 
 ```julia; echo=false; results="hidden"
 using ProfileCanvas
-function profilehtmlstring() 
+function profilehtmlstring()
   buf = IOBuffer()
   show(buf, MIME("text/html"), ProfileCanvas.view(Profile.fetch()))
   s=String(take!(buf))
@@ -89,13 +89,13 @@ It's a good idea to check `@code_warntype` and verify that there are no type ins
 
 ## LoopVectorization
 
-Examining the profile, we see that the multiplication of `x*Σ*ν` is the single most costly operation. 
+Examining the profile, we see that the multiplication of `x*Σ*ν` is the single most costly operation.
 The second most costly are lines computing the softmax function, `exp.(s)./(1 .+exp.(s))`
 
 ```julia; cache=true
 using LoopVectorization
 
-@inline function dplusxMy(d::AbstractVector,x::AbstractMatrix,M::AbstractMatrix,y::AbstractVector) 
+@inline function dplusxMy(d::AbstractVector,x::AbstractMatrix,M::AbstractMatrix,y::AbstractVector)
   out = similar(d)
   @turbo for i ∈ axes(x,1)
     r = d[i]
@@ -121,7 +121,7 @@ function share_v2(δ, Σ, x, ∫)
   function shareν(ν)
     s = dplusxMy(δ,x,Σ,ν)
     softmax0!(s)
-    s  
+    s
   end
   return(∫(shareν))
 end
@@ -129,7 +129,7 @@ end
 ```
 
 By writing the `δ+x*Σ*ν` as loop we avoid some allocations, and can use `@turbo` to insert SIMD instructions. This gives a
-noticeable speedup. About half the gains here are from writing out the loops in `dplusxMy` and half from using `@turbo`. The changes 
+noticeable speedup. About half the gains here are from writing out the loops in `dplusxMy` and half from using `@turbo`. The changes
 to the softmax calculation did not make much difference.
 
 ```julia; cache=true; results="raw"
@@ -140,11 +140,11 @@ ProfileCanvas.@profview sum(share_v2(δ,Σ,X,∫) for i ∈ 1:1000)
 profilehtmlstring()
 ```
 
-The execution time is still dominated by the two functions mentioned above. 
+The execution time is still dominated by the two functions mentioned above.
 
 ## StaticArrays
 
-Since the calculations involve small arrays, it is likely to benefit from using `StaticArrays`. 
+Since the calculations involve small arrays, it is likely to benefit from using `StaticArrays`.
 
 ```julia; cache=true
 using StaticArrays
@@ -158,7 +158,7 @@ s∫ = Integrator(ix,iw)
 @benchmark share_v2(sδ,sΣ,sX,s∫)
 ```
 
-The code is now 2 times faster than what we started with. 
+The code is now 2 times faster than what we started with.
 
 Interestly, slightly better performance can be achieved by simply passing `StaticArrays` to the original code.
 
@@ -168,7 +168,7 @@ Interestly, slightly better performance can be achieved by simply passing `Stati
 
 ## Non-allocating
 
-We can do still better by eliminating the allocations. With normal arrays, broadcast operations are usually non-allocating, and normal array operations allocate. 
+We can do still better by eliminating the allocations. With normal arrays, broadcast operations are usually non-allocating, and normal array operations allocate.
 With `StaticArrays`, normal operatorations do not allocate.^[Like scalar variables, StaticArrays exist on the stack instead of the heap, so creating them is much less costly and they do not count toward the reported allocations.]
 
 Additionally, we can precompute x*Σ outside of `shareν` (we could have done this at any time earlier too). This change accounts for about 1μs of the speed up.
@@ -241,7 +241,7 @@ Polyester.reset_threads!()
 
 # `statparts`
 
-A few people worked on optimizing the `klm` or `clr` function from [GMMInference.jl](https://github.com/schrimpf/GMMInference.jl). 
+A few people worked on optimizing the `klm` or `clr` function from [GMMInference.jl](https://github.com/schrimpf/GMMInference.jl).
 Here is the original code for `klm`.
 ```julia
 using ForwardDiff
@@ -251,9 +251,9 @@ function statparts(gi::Function)
   end
   function(θ)
     giθ = gi(θ)
-    p = length(θ)    
+    p = length(θ)
     (n, k) = size(giθ)
-    Ω = cov(giθ)  
+    Ω = cov(giθ)
     gn=mean(gi(θ), dims=1)'
     Gi= ForwardDiff.jacobian(gi,θ)
     Gi = reshape(Gi, n , k, p)
@@ -332,10 +332,10 @@ function statparts(gi::F) where {F <: Function}
   function P(A::AbstractMatrix) # projection matrix
     A*pinv(A'*A)*A'
   end
-  let gi=gi 
+  let gi=gi
     function(θ)
       giθ = gi(θ)
-      p = length(θ)    
+      p = length(θ)
       (n, k) = size(giθ)
       Ω = Hermitian(cov(giθ))
       gn=mean(gi(θ), dims=1)'
@@ -362,18 +362,18 @@ end
 @code_warntype statparts(gi)(β0)
 ```
 
-I also added the `where {F` statement to [ensure compiler specialization](https://docs.julialang.org/en/v1/manual/performance-tips/#Be-aware-of-when-Julia-avoids-specializing), and 
-added the `let gi=gi` line to help [with the performance of captured variables](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured). 
+I also added the `where {F` statement to [ensure compiler specialization](https://docs.julialang.org/en/v1/manual/performance-tips/#Be-aware-of-when-Julia-avoids-specializing), and
+added the `let gi=gi` line to help [with the performance of captured variables](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured).
 
 ```julia; term=true
 @code_warntype klm(gi)(β0)
 ```
-There's still a type-instability in `klm`. This one is harder to understand. It is due to the fact that the appropriate meaning of a matrix square root depends on the nature of the matrix. 
-In particular, the value could be a complex valued matrix instead of real valued. 
-We know that Ω should be positive definite with a real matrix square root. We can compute its square root from its Eigen decomposition and avoid the type instability. 
+There's still a type-instability in `klm`. This one is harder to understand. It is due to the fact that the appropriate meaning of a matrix square root depends on the nature of the matrix.
+In particular, the value could be a complex valued matrix instead of real valued.
+We know that Ω should be positive definite with a real matrix square root. We can compute its square root from its Eigen decomposition and avoid the type instability.
 
 ```julia
-function klm(gi::F ) where {F <: Function} 
+function klm(gi::F ) where {F <: Function}
   let gi=gi
     function(θ)
       (n,k,p,gn, Ω, D, P) = statparts(gi)(θ)
@@ -397,7 +397,7 @@ Fixing these type instabilities speeds up the code by a factor of about 5.
 
 ## Reducing allocations and Other Optimizations
 
-Profiling reveals the majority of time is spent in the innermost loop of the `statparts` function. 
+Profiling reveals the majority of time is spent in the innermost loop of the `statparts` function.
 This loop allocates quite a bit because the arrays are using slices. We can avoid allocations by using `@views` and more broadcasting.
 See ["Consider using views for slices"](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-views) and
 ["More dots"](https://docs.julialang.org/en/v1/manual/performance-tips/#More-dots:-Fuse-vectorized-operations),
@@ -407,14 +407,14 @@ function statparts(gi::F) where {F <: Function}
   function P(A::AbstractMatrix) # projection matrix
     A*pinv(A'*A)*A'
   end
-  let gi=gi 
+  let gi=gi
     function(θ)
       giθ = gi(θ)
-      p = length(θ)    
+      p = length(θ)
       (n, k) = size(giθ)
       Ω = Hermitian(cov(giθ))
       gn=mean(gi(θ), dims=1)'
-      iΩgn = Ω \ gn      
+      iΩgn = Ω \ gn
       Gi = zeros(n,k,p)
       ForwardDiff.jacobian!(Gi,gi,θ)
       Gi = reshape(Gi, n , k, p)

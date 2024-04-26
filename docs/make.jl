@@ -27,7 +27,7 @@ if runweave
                    nbconvert_options="--allow-errors")
       elseif (stat(src).mtime > stat(target).mtime)
         convert_doc(src, joinpath("..","build",replace(f, "jmd" => "ipynb")))
-      end 
+      end
     end
   finally
     cd(wd)
@@ -52,7 +52,7 @@ makedocs(
 #run(`quarto build build`)
 
 
-deploy=true
+deploy=false
 if deploy || "deploy" in ARGS
   cd(@__DIR__)
   run(`quarto publish gh-pages build`)
