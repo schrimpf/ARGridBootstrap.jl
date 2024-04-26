@@ -85,6 +85,8 @@ Profile.init(n=10^7,delay=0.00001);
 profilehtmlstring()
 ```
 
+It's a good idea to check `@code_warntype` and verify that there are no type instabilities (variables with type `Any` or `Union`). I checked and there are no type instabilites here.
+
 ## LoopVectorization
 
 Examining the profile, we see that the multiplication of `x*Σ*ν` is the single most costly operation. 
@@ -168,13 +170,16 @@ Interestly, slightly better performance can be achieved by simply passing `Stati
 
 We can do still better by eliminating the allocations. With normal arrays, broadcast operations are usually non-allocating, and normal array operations allocate. 
 With `StaticArrays`, normal operatorations do not allocate.^[Like scalar variables, StaticArrays exist on the stack instead of the heap, so creating them is much less costly and they do not count toward the reported allocations.]
+
+Additionally, we can precompute x*Σ outside of `shareν` (we could have done this at any time earlier too). This change accounts for about 1μs of the speed up.
 ```julia
 function share_v3(δ, Σ, x, ∫)
   J,K = size(x)
   (length(δ) == J) || error("length(δ)=$(length(δ)) != size(x,1)=$J")
   (K,K) == size(Σ) || error("size(x,2)=$K != size(Σ)=$(size(Σ))")
+  xΣ = x*Σ
   function shareν(ν)
-    s = δ + x*Σ*ν
+    s = δ + xΣ*ν
     smax=max(0,maximum(s))
     s -= smax*ones(typeof(s))
     s = exp.(s)
@@ -189,11 +194,50 @@ end
 @benchmark share_v3(sδ,sΣ,sX,s∫)
 ```
 
-The code is now 5 times faster than the original, and only allocates once (to store the return value). If one wanted to optimize further, you could still parallelized the sum in the integral. 
-You could try using the `VectorizedReduction`. to execute the sum using SIMD instructions, or multi-thread the loop following the pattern suggested in [the Julia documentation](https://docs.julialang.org/en/v1/manual/multi-threading/#Using-@threads-without-data-races). 
-There are also multiple packages that provide threaded reductions.
+The code is now 5 times faster than the original, and only allocates once (to store the return value). 
 
-I suspect the loop is too small to see gains from multithreading, but I am not certain.
+## Multi-Threading
+
+Multi-threading this code is difficult because it is already quite fast. The sum in the integral can be parallelized, but unless 
+there are a large number of integration points, the overhead from creating threads will likely outweigh the benefits. 
+
+The [`Polyester` package](https://github.com/JuliaSIMD/Polyester.jl) provides a faster, but more limited threading model than base Julia. 
+Using it, we can see modest gains, even with just 100 integration points. 
+
+To get type stability, I had to write the integration sum loop inside the share function. 
+It would have been cleaner to keep the integration sum in a separate function, but I could not make it type stable that way.
+
+
+```julia
+import Polyester
+function share_v4(δ, Σ, x, ∫, ::Val{B}=Val(length(∫.x) ÷ 10)) where {B}
+  J,K = size(x)
+  (length(δ) == J) || error("length(δ)=$(length(δ)) != size(x,1)=$J")
+  (K,K) == size(Σ) || error("size(x,2)=$K != size(Σ)=$(size(Σ))")
+  xΣ = x*Σ
+  function shareν(ν)
+    s = δ + xΣ*ν
+    smax=max(0,maximum(s))
+    s -= smax*ones(typeof(s))
+    s = exp.(s)
+    s *= 1/(sum(s) + exp(0-smax))
+    return(s)
+  end
+  batchlen= length(∫.x)÷B
+  @assert B*batchlen==length(∫.x)
+  out = MVector{B,typeof(δ)}(undef)
+  Polyester.@batch for b ∈ 1:B  
+    batch = ((b-1)*(batchlen)+1):(b*batchlen)
+    out[b] = zero(typeof(δ))
+    for i ∈ batch
+      out[b] += shareν(∫.x[i])*∫.w[i]
+    end
+  end
+  return(sum(out))
+end
+Polyester.reset_threads!()
+@benchmark share_v4(sδ,sΣ,sX,s∫, Val(20))
+```
 
 # `statparts`
 
@@ -273,12 +317,12 @@ end
 ## Fixing Type Instabilities
 
 From `@code_warntype`, we see that the compiles is unable to infer the type of some variables. The problem seems to start with `D`.  This is quite puzzling because `D` is explicitly initialized as `zeros(eltype(Gi),...).`
-```julia
+```julia; term=true
 @code_warntype klm(gi)(β0)
 ```
 To investigate further, let us focus on `statparts`.
 
-```julia
+```julia; term=true
 @code_warntype statparts(gi)(β0)
 ```
 We see that `G`, `Gi`, `Γ`, and `D` are all type `Any`.  For some reason, the return value of `ForwardDiff.jacobian` is not being inferred. We can workaround this by using an `jacobian!` instead.
@@ -312,13 +356,16 @@ function statparts(gi::F) where {F <: Function}
     end
   end
 end
+```
+
+```julia; term=true
 @code_warntype statparts(gi)(β0)
 ```
 
 I also added the `where {F` statement to [ensure compiler specialization](https://docs.julialang.org/en/v1/manual/performance-tips/#Be-aware-of-when-Julia-avoids-specializing), and 
 added the `let gi=gi` line to help [with the performance of captured variables](https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured). 
 
-```julia
+```julia; term=true
 @code_warntype klm(gi)(β0)
 ```
 There's still a type-instability in `klm`. This one is harder to understand. It is due to the fact that the appropriate meaning of a matrix square root depends on the nature of the matrix. 
@@ -336,6 +383,9 @@ function klm(gi::F ) where {F <: Function}
     end
   end
 end
+```
+
+```julia; term=true
 @code_warntype klm(gi)(β0)
 ```
 

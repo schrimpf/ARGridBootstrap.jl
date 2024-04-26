@@ -16,7 +16,7 @@ if runweave
       target = joinpath("..","build",replace(f, r"jmd$"=>s"md"))
       if stat(src).mtime > stat(target).mtime
         weave(src,out_path=joinpath("..","build"),
-              cache=:user,
+              cache=:refresh,
               cache_path=joinpath("..","weavecache"),
               doctype="github", mod=Main,
               args=Dict("md" => true))
