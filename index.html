@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.450">
+<meta name="generator" content="quarto-1.4.553">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -22,7 +22,7 @@ ul.task-list li input[type="checkbox"] {
 }
 /* CSS for syntax highlighting */
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -79,7 +79,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   "collapse-after": 3,
   "panel-placement": "end",
   "type": "overlay",
-  "limit": 20,
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
   "language": {
     "search-no-results-text": "No results",
     "search-matching-documents-text": "matching documents",
@@ -88,6 +94,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-more-match-text": "more match in this document",
     "search-more-matches-text": "more matches in this document",
     "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
     "search-detached-cancel-button-title": "Cancel",
     "search-submit-button-title": "Submit",
     "search-label": "Search"
@@ -101,9 +108,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg navbar-dark ">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
-      <div class="navbar-brand-container">
+      <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">ARGridBootstrap</span>
     </a>
@@ -115,33 +122,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" rel="" target="" aria-current="page">
- <span class="menu-text">Package Documentation</span></a>
+    <a class="nav-link active" href="./index.html" aria-current="page"> 
+<span class="menu-text">Package Documentation</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./argridboot.html" rel="" target="">
- <span class="menu-text">Coding for Performance</span></a>
+    <a class="nav-link" href="./argridboot.html"> 
+<span class="menu-text">Coding for Performance</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./threads.html" rel="" target="">
- <span class="menu-text">Multi-Threading</span></a>
+    <a class="nav-link" href="./threads.html"> 
+<span class="menu-text">Multi-Threading</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./gpu.html" rel="" target="">
- <span class="menu-text">Using GPUs</span></a>
+    <a class="nav-link" href="./gpu.html"> 
+<span class="menu-text">Using GPUs</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./assignment.html" rel="" target="">
- <span class="menu-text">More Examples</span></a>
+    <a class="nav-link" href="./assignment.html"> 
+<span class="menu-text">More Examples</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./license.html" rel="" target="">
- <span class="menu-text">License</span></a>
+    <a class="nav-link" href="./license.html"> 
+<span class="menu-text">License</span></a>
   </li>  
 </ul>
-            <div class="quarto-navbar-tools ms-auto">
-</div>
           </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+</div>
       </div> <!-- /container-fluid -->
     </nav>
 </header>
@@ -167,6 +174,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
+
 
 
 
@@ -215,7 +223,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><code>y</code>: vector of length <code>T = length(e)</code></li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL1-L16" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL1-L16" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.b_est_mldivide-Tuple{Any}" href="#ARGridBootstrap.b_est_mldivide-Tuple{Any}">#</a> <strong><code>ARGridBootstrap.b_est_mldivide</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">b_est_mldivide</span>(y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Estimate AR(1) model with intercept and time trend.</p>
@@ -230,7 +238,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>se</code>: standard errors</li>
 <li><code>e</code>: residuals</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL93-L107" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL93-L107" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.b_est_nox-Union{Tuple{Any}, Tuple{FR}, Tuple{F}} where {F<:Function, FR<:Function}" href="#ARGridBootstrap.b_est_nox-Union{Tuple{Any}, Tuple{FR}, Tuple{F}} where {F<:Function, FR<:Function}">#</a> <strong><code>ARGridBootstrap.b_est_nox</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">b_est_nox</span>(y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Estimate AR(1) model with intercept and time trend.</p>
@@ -245,7 +253,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>se</code>: standard errors</li>
 <li><code>e</code>: residualas</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL120-L134" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL120-L134" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.b_est_original-Tuple{Any}" href="#ARGridBootstrap.b_est_original-Tuple{Any}">#</a> <strong><code>ARGridBootstrap.b_est_original</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">b_est_original</span>(y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Estimate AR(1) model with intercept and time trend</p>
@@ -260,7 +268,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>se</code>: standard errors</li>
 <li><code>e</code>: residuals</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL29-L43" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL29-L43" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.b_est_stride-Tuple{Any}" href="#ARGridBootstrap.b_est_stride-Tuple{Any}">#</a> <strong><code>ARGridBootstrap.b_est_stride</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">b_est_stride</span>(y)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Estimate AR(1) model with intercept and time trend.</p>
@@ -275,13 +283,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>se</code>: standard errors</li>
 <li><code>e</code>: residualas</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL240-L254" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL240-L254" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.invsym-Tuple{StrideArraysCore.StaticStrideArray{Float64, 2, (1, 2), Tuple{Static.StaticInt{3}, Static.StaticInt{3}}, Tuple{Nothing, Nothing}, Tuple{Static.StaticInt{1}, Static.StaticInt{1}}, 9}}" href="#ARGridBootstrap.invsym-Tuple{StrideArraysCore.StaticStrideArray{Float64, 2, (1, 2), Tuple{Static.StaticInt{3}, Static.StaticInt{3}}, Tuple{Nothing, Nothing}, Tuple{Static.StaticInt{1}, Static.StaticInt{1}}, 9}}">#</a> <strong><code>ARGridBootstrap.invsym</code></strong> — <em>Method</em>.</p>
 <p>fast inverse function for statically sized 3x3 StrideArray</p>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL314-L316" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL314-L316" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.oneto-Tuple{Val{1}}" href="#ARGridBootstrap.oneto-Tuple{Val{1}}">#</a> <strong><code>ARGridBootstrap.oneto</code></strong> — <em>Method</em>.</p>
 <p>oneto(Val(N)) Creates at a compile time the tuple (1, 2, …, N)</p>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL164-L167" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL164-L167" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any, Any, Any}, Tuple{Any, Any, Any, Val{P}}, Tuple{Any, Any, Any, Val{P}, Any}} where P" href="#ARGridBootstrap.simulate_estimate_arp-Union{Tuple{P}, Tuple{Any, Any, Any}, Tuple{Any, Any, Any, Val{P}}, Tuple{Any, Any, Any, Val{P}, Any}} where P">#</a> <strong><code>ARGridBootstrap.simulate_estimate_arp</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate_estimate_arp</span>(y0, a, <span class="cn">e</span>, ar<span class="op">::</span><span class="dt">Val{P}</span>, rindex<span class="op">=</span><span class="fu">T-&gt;rand</span>(<span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(<span class="cn">e</span>),T))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Simulates and estimates an AR(P) model. <code>y</code> is simulated as</p>
@@ -302,7 +310,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>θ</code> estimated coefficients</li>
 <li><code>se</code> standard errors</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL334-L357" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL334-L357" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.simulate_estimate_arp_lv-Union{Tuple{P}, Tuple{Any, Any, Any}, Tuple{Any, Any, Any, Val{P}}, Tuple{Any, Any, Any, Val{P}, Any}} where P" href="#ARGridBootstrap.simulate_estimate_arp_lv-Union{Tuple{P}, Tuple{Any, Any, Any}, Tuple{Any, Any, Any, Val{P}}, Tuple{Any, Any, Any, Val{P}, Any}} where P">#</a> <strong><code>ARGridBootstrap.simulate_estimate_arp_lv</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb12"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">simulate_estimate_arp_lv</span>(y0, a, <span class="cn">e</span>, ar<span class="op">::</span><span class="dt">Val{P}</span>, rindex<span class="op">=</span><span class="fu">T-&gt;rand</span>(<span class="fl">1</span><span class="op">:</span><span class="fu">length</span>(<span class="cn">e</span>),T))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Simulates and estimates an AR(P) model. Uses LoopVectorization.jl to produce fast code.</p>
@@ -324,7 +332,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>θ</code> estimated coefficients</li>
 <li><code>se</code> standard errors</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/ar.jl#LL409-L435" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/ar.jl#LL409-L435" class="documenter-source">source</a><br></p>
 <p><a id="Grid-Bootstrap"></a></p>
 <p><a id="Grid-Bootstrap-1"></a></p>
 </section>
@@ -347,7 +355,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat for each grid value and simulated dataset</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/gridbootstrap.jl#LL107-L127" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/gridbootstrap.jl#LL107-L127" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any, Any, Any, Val{P}, Any, Any, Any}} where P" href="#ARGridBootstrap.argridkernel!-Union{Tuple{P}, Tuple{Any, Any, Any, Val{P}, Any, Any, Any}} where P">#</a> <strong><code>ARGridBootstrap.argridkernel!</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb14"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">argridkernel!</span>(ba,bootq, bootse, ar<span class="op">::</span><span class="dt">Val{P}</span>, <span class="cn">e</span>, ei, αgrid)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>GPU kernel for simulation and estimation of AR(P) model.</p>
@@ -365,7 +373,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>αgrid</code> : length <code>ngrid</code> values of AR(1) parameter to perform bootstrap on.</li>
 </ul>
 <p>Returns nothing, but modifies in place <code>ba</code>, <code>bootq</code>, and <code>bootse</code></p>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/gridbootstrap.jl#LL155-L182" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/gridbootstrap.jl#LL155-L182" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.gridbootstrap" href="#ARGridBootstrap.gridbootstrap">#</a> <strong><code>ARGridBootstrap.gridbootstrap</code></strong> — <em>Function</em>.</p>
 <div class="sourceCode" id="cb15"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gridbootstrap</span>(estimator, simulator,</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>              grid<span class="op">::</span><span class="dt">AbstractVector</span>,</span>
@@ -384,7 +392,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat for each grid value and simulated dataset</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/gridbootstrap.jl#LL1-L22" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/gridbootstrap.jl#LL1-L22" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.gridbootstrap_threaded" href="#ARGridBootstrap.gridbootstrap_threaded">#</a> <strong><code>ARGridBootstrap.gridbootstrap_threaded</code></strong> — <em>Function</em>.</p>
 <div class="sourceCode" id="cb16"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gridbootstrap_threaded</span>(estimator, simulator,</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                grid<span class="op">::</span><span class="dt">AbstractVector</span>,</span>
@@ -404,12 +412,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>ba</code> hatα - α for each grid value and simulated dataset</li>
 <li><code>t</code> t-stat for each grid value and simulated dataset</li>
 </ul>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/gridbootstrap.jl#LL41-L65" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/gridbootstrap.jl#LL41-L65" class="documenter-source">source</a><br></p>
 <p><a id="ARGridBootstrap.rngarray-Tuple{Any}" href="#ARGridBootstrap.rngarray-Tuple{Any}">#</a> <strong><code>ARGridBootstrap.rngarray</code></strong> — <em>Method</em>.</p>
 <div class="sourceCode" id="cb17"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rngarray</span>(n)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Create <code>n</code> rng states that will not overlap for 10^20 steps.</p>
 <p>Note: this will be unneeded in Julia 1.3 when thread-safe RNG is included.</p>
-<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/a5d6afed645f5222ea704480570954f1434d9546/src/gridbootstrap.jl#LL86-L93" class="documenter-source">source</a><br></p>
+<p><a target="_blank" href="https://github.com/schrimpf/ARGridBootstrap.jl/blob/edf5fdef4382710b520e8c3ebd16a8a9ed16b803/src/gridbootstrap.jl#LL86-L93" class="documenter-source">source</a><br></p>
 
 
 </section>
@@ -496,10 +504,27 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     // clear code selection
     e.clearSelection();
   });
-  function tippyHover(el, contentFn) {
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp("https:\/\/schrimpf\.github\.io\/ARGridBootstrap\/");
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
     const config = {
       allowHTML: true,
-      content: contentFn,
       maxWidth: 500,
       delay: 100,
       arrow: false,
@@ -509,8 +534,17 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       interactive: true,
       interactiveBorder: 10,
       theme: 'quarto',
-      placement: 'bottom-start'
+      placement: 'bottom-start',
     };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
     window.tippy(el, config); 
   }
   const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
@@ -522,7 +556,130 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
-      return note.innerHTML;
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
     });
   }
       let selectedAnnoteEl;
@@ -566,6 +723,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
             }
             div.style.top = top - 2 + "px";
             div.style.height = height + 4 + "px";
+            div.style.left = 0;
             let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
             if (gutterDiv === null) {
               gutterDiv = window.document.createElement("div");
@@ -591,6 +749,32 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         });
         selectedAnnoteEl = undefined;
       };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
       // Attach click handler to the DT
       const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
       for (const annoteDlNode of annoteDls) {
@@ -651,6 +835,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 });
 </script>
 </div> <!-- /content -->
+
 
 
 
