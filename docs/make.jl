@@ -51,7 +51,6 @@ makedocs(
 
 #run(`quarto build build`)
 
-
 deploy=false
 if deploy || "deploy" in ARGS
   cd(@__DIR__)

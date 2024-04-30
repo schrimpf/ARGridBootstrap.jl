@@ -1,0 +1,822 @@
+---
+title: "Julia at Full Tilt: Profiling and Optimizations"
+author: "Paul Schrimpf"
+date: last-modified
+execute:
+  cache: true
+  echo: true
+format:
+  revealjs:
+    theme: night
+    width: 1575
+    height: 1050
+    min-scale: 0.1
+    max-scale: 3.0
+    css: styles.css
+    chalkboard:
+      theme: whiteboard
+      boardmarker-width: 2
+      chalk-width: 2
+      chalk-effect: 0.0
+    title-slide-attributes:
+      data-background-image: ""
+      data-background-size: contain
+    mermaid:
+      theme: neutral
+    mermaid-format: png
+bibliography: perf.bib
+---
+
+# Introduction
+
+## About Me
+
+- [UBC Economics](economics.ubc.ca), research in econometrics, industrial organization
+- [My Website](http://faculty.arts.ubc.ca/pschrimpf/)
+- [my github](https://github.com/schrimpf)
+- Teach courses using Julia
+  - [ECON 622: Computational Economics with Data Science Applications](Computational Economics with Data Science Applications)
+  - [ECON 567 (empirical industrial organization)](http://faculty.arts.ubc.ca/pschrimpf/567/index.html)
+
+
+## Useful Resources
+
+- [Performance Tips in Julia Manual](https://docs.julialang.org/en/v1/manual/performance-tips/)
+
+- [How to optimise Julia code: A practical guide](https://viralinstruction.com/posts/optimise/) @nissen2022
+
+- [Optimizing Serial Code](https://book.sciml.ai/notes/02-Optimizing_Serial_Code/) @rackauckas2019a
+
+- [Coding for performance](https://schrimpf.github.io/ARGridBootstrap.jl/argridboot.html) (basis for this talk) @schrimpfARGridBootstrap
+
+
+## Overview
+
+```{mermaid}
+%%| echo : false
+flowchart LR
+    start(((Code is too slow))) --> Basics
+    endq((Fast enough?)) -- no --> opt
+    endq-- yes -->ending((Hooray!))
+    subgraph Basics
+        direction TB
+        f[Use functions]
+        ts[Type stability]
+        alg[Good algorithm]
+    end
+    Basics-->endq
+    subgraph opt[Targeted Optimizations]
+        direction LR
+        prof[Profile]-->bottle
+        bottle[What are the bottlenecks?] -- allocations --> allocs[Reduce allocations]
+        bottle -- floating point operations -->cpu[Optimize for CPU efficiency]
+        bottle -- something else --> goodluck[???]
+        subgraph Parallelization[Parallelization]
+            thread[Multi-thread]
+            gpu[GPU]
+            dist[Distributed]
+        end
+        style Parallelization fill:#7b7d7d
+        style thread fill: #979a9a
+        style gpu fill: #979a9a
+        style dist fill: #979a9a
+    end
+    opt -->endq
+    bottle -- do not see any --> Parallelization
+```
+
+# Basics
+
+```{mermaid}
+%%| echo : false
+flowchart LR
+    start(((Code is too slow))) --> Basics
+    endq((Fast enough?)) -- no --> opt
+    endq-- yes -->ending((Hooray!))
+    subgraph Basics
+        direction TB
+        f[Use functions]
+        ts[Type stability]
+        alg[Good algorithm]
+    end
+    style Basics fill: #e7ad52
+    Basics-->endq
+    subgraph opt[Targeted Optimizations]
+        direction LR
+        prof[Profile]-->bottle
+        bottle[What are the bottlenecks?] -- allocations --> allocs[Reduce allocations]
+        bottle -- floating point operations -->cpu[Optimize for CPU efficiency]
+        bottle -- something else --> goodluck[???]
+        subgraph Parallelization[Parallelization]
+            thread[Multi-thread]
+            gpu[GPU]
+            dist[Distributed]
+        end
+        style Parallelization fill:#7b7d7d
+        style thread fill: #979a9a
+        style gpu fill: #979a9a
+        style dist fill: #979a9a
+    end
+    opt -->endq
+    bottle -- do not see any --> Parallelization
+```
+
+
+## Avoid Premature Optimization
+
+:::{.incremental}
+
+- Complete, correct $>>$ fast, incorrect, unfinished
+- Clear, maintainable $>$ fast, incomprensible (almost always)
+- But some practices can both make code faster and clearer
+
+:::
+
+
+## Functions
+
+- Julia functions are JIT compiled, global scripts are not
+- Code needs to be in a function for full performance
+- Organizing code into functions is also better for readability and maintenance
+
+## Type Stability
+
+- To generate efficient code, the Julia compiler needs to know the types of all variables
+- Given the types of the inputs of a function, the types of its intermediate variables and output should be deterministic
+
+## Type Stable: Example
+
+```{julia}
+#| output: false
+using BenchmarkTools
+function unstabletrick(x, t)
+  sum(xi < t ? xi : t for xi in x)
+end
+
+t = 0.5
+n = 10000
+x = (rand(n).-0.5)*10
+```
+
+## Type Stable: Example
+
+::: {.columns}
+
+::: {.column width="33%"}
+
+Stable: Float to Float
+
+```{julia}
+@benchmark unstabletrick(x, 0.)
+```
+
+:::
+
+::: {.column width="33%"}
+
+Stable: Int to Int
+
+```{julia}
+xint = round.(Int, x)
+@benchmark unstabletrick(xint, 0)
+```
+
+:::
+
+::: {.column width="33%"}
+
+Unstable: (Int & Float) to (Int | Float)
+
+```{julia}
+@benchmark unstabletrick(xint, 0.)
+```
+
+:::
+
+:::
+
+- 6-32x slowdown!
+
+## Detecting Type Instability
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+```{julia}
+@code_warntype unstabletrick(xint,0)
+```
+
+:::
+
+::: {.column width="50%"}
+
+```{julia}
+@code_warntype unstabletrick(xint,0.)
+```
+
+:::
+
+:::
+
+## Extended Example
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+```{julia}
+#| code-fold: show
+#| code-summary: "Code for klm()"
+using ForwardDiff, LinearAlgebra, Distributions
+function statparts(gi::Function)
+  function P(A) # projection matrix
+    A*pinv(A'*A)*A'
+  end
+  function(θ)
+    giθ = gi(θ)
+    p = length(θ)
+    (n, k) = size(giθ)
+    Ω = cov(giθ)
+    gn=mean(gi(θ), dims=1)'
+    Gi= ForwardDiff.jacobian(gi,θ)
+    Gi = reshape(Gi, n , k, p)
+    G = mean(Gi, dims=1)
+    Γ = zeros(eltype(Gi),p,k,k)
+    D = zeros(eltype(Gi),k, p)
+    for j in 1:p
+      for i in 1:n
+        Γ[j,:,:] += (Gi[i,:,j] .- G[1,:,j]) * giθ[i,:]'
+      end
+      Γ[j,:,:] ./= n
+      D[:,j] = G[1,:,j] - Γ[j,:,:]*inv(Ω)*gn
+    end
+    return(n,k,p,gn, Ω, D, P)
+  end
+end
+
+function klm(gi::Function)
+  SP = statparts(gi)
+  function(θ)
+    (n,k,p,gn, Ω, D, P) = SP(θ)
+    return n*(gn'*Ω^(-1/2)*P(Ω^(-1/2)*D)*Ω^(-1/2)*gn)[1]
+  end
+end
+
+import Random
+function simulate_ivshare(n,β,γ,ρ)
+  z = randn(n, size(γ)[1])
+  endo = randn(n, length(β))
+  x = z*γ .+ endo
+  ξ = rand(Normal(0,sqrt((1.0-ρ^2))),n).+endo[:,1]*ρ
+  y = cdf.(Logistic(), x*β .+ ξ)
+  return((y=y,x=x,z=z))
+end
+n = 100
+k = 2
+iv = 3
+β0 = ones(k)
+π0 = vcat(5*I,ones(iv-k,k))
+ρ = 0.5
+Random.seed!(622)
+(y,x,z) = simulate_ivshare(n,β0,π0,ρ)
+
+function gi_ivshare(β,y,x,z)
+  ξ = quantile.(Logistic(),y) .- x*β
+  ξ.*z
+end
+
+gi = let y=y, x=x, z=z
+  β->gi_ivshare(β,y,x,z)
+end
+```
+
+```{julia}
+@code_warntype statparts(gi)(β0)
+```
+
+```{julia}
+@benchmark statparts(gi)(β0)
+```
+
+:::
+
+::: {.column width="50%"}
+
+```{julia}
+#| code-fold: show
+#| code-summary: "klm_stable()"
+function statparts_stable(gi::F) where {F <: Function}
+  function P(A) # projection matrix
+    A*pinv(A'*A)*A'
+  end
+  function(θ)
+    giθ = gi(θ)
+    p = length(θ)
+    (n, k) = size(giθ)
+    Ω = cov(giθ)
+    gn=mean(gi(θ), dims=1)'
+    Gi = similar(gn,n,k,p)
+    Gi= ForwardDiff.jacobian!(Gi,gi,θ)
+    G = mean(Gi, dims=1)
+    Γ = zeros(eltype(Gi),p,k,k)
+    D = zeros(eltype(Gi),k, p)
+    for j in 1:p
+      for i in 1:n
+        Γ[j,:,:] += (Gi[i,:,j] .- G[1,:,j]) * giθ[i,:]'
+      end
+      Γ[j,:,:] ./= n
+      D[:,j] = G[1,:,j] - Γ[j,:,:]*inv(Ω)*gn
+    end
+    return(n,k,p,gn, Ω, D, P)
+  end
+end
+
+function klm_stable(gi::F) where {F <: Function}
+  SP = statparts_stable(gi)
+  function(θ)
+    (n,k,p,gn, Ω, D, P) = SP(θ)
+    λ, v = eigen(Ω)
+    irΩ = v*diagm(λ.^(-1/2))*v'
+    return n*(gn'*irΩ*P(irΩ*D)*irΩ*gn)[1]
+  end
+end
+```
+
+```{julia}
+@code_warntype statparts_stable(gi)(β0)
+```
+
+```{julia}
+@benchmark statparts_stable(gi)(β0)
+```
+
+```{julia}
+using Test
+@test klm(gi)(β0) ≈ klm_stable(gi)(β0)
+```
+
+:::
+
+:::
+
+- See [https://schrimpf.github.io/ARGridBootstrap.jl/assignment.html#statparts](https://schrimpf.github.io/ARGridBootstrap.jl/assignment.html#statparts) for more information
+
+# Targeted Optimizations
+```{mermaid}
+%%| echo : false
+flowchart LR
+    start(((Code is too slow))) --> Basics
+    endq((Fast enough?)) -- no --> opt
+    endq-- yes -->ending((Hooray!))
+    subgraph Basics
+        direction TB
+        f[Use functions]
+        ts[Type stability]
+        alg[Good algorithm]
+    end
+    Basics-->endq
+    subgraph opt[Targeted Optimizations]
+        direction LR
+        prof[Profile]-->bottle
+        bottle[What are the bottlenecks?] -- allocations --> allocs[Reduce allocations]
+        bottle -- floating point operations -->cpu[Optimize for CPU efficiency]
+        bottle -- something else --> goodluck[???]
+        bottle -- do not see any --> Parallelization
+        subgraph Parallelization[Parallelization]
+            thread[Multi-thread]
+            gpu[GPU]
+            dist[Distributed]
+        end
+        style Parallelization fill:#7b7d7d
+        style thread fill: #979a9a
+        style gpu fill: #979a9a
+        style dist fill: #979a9a
+    end
+    style opt fill: #e7ad52
+    opt -->endq
+```
+
+
+## Profiling
+
+```{julia}
+#| output: false
+#| code-fold: true
+#| code-summary: "profileiframe"
+using Profile, ProfileCanvas
+function profilehtmlstring()
+  buf = IOBuffer()
+  show(buf, MIME("text/html"), ProfileCanvas.view(Profile.fetch()))
+  s=String(take!(buf))
+  println("\n<br><br>\n"*s*"\n<br>\n")
+end
+function profileiframe(filename="proftmp.html")
+  #buf = IOBuffer()
+  #show(buf, MIME("text/html"), ProfileCanvas.view(Profile.fetch()))
+  #s=String(take!(buf))
+  #s=replace(s, "\"" => "&quot" )
+  #  HTML("<iframe srcdata=\""*s*"\" width=\"1200\"  height=\"650\"></iframe>\n")
+  ProfileCanvas.html_file(filename)
+  HTML("<iframe src=\""*filename*"\" width=\"1200\"  height=\"650\"></iframe>\n")
+end
+```
+
+```{julia}
+#| output: asis
+Profile.clear();
+Profile.init(n=10^7,delay=0.00001);
+@profile sum(klm_stable(gi)(β0) for i in 1:1_000)
+profileiframe("klmprof.html") # only needed for quarto, just use @profview elsewhere
+```
+
+## Reducing Allocations
+
+- Allocating memory is slow
+- Reduce allocations by:
+  - Using `@views` instead of slices
+  - Pre-allocating and reusing arrays
+  - Eliminate dynamic allocations with `StaticArrays` or similar compile time known size types
+
+## Reduced Allocations
+
+```{julia}
+#| code-fold: true
+#| code-summary: klm_fast()
+function statparts_fast(gi::F) where {F <: Function}
+  function P(A::AbstractMatrix) # projection matrix
+    A*pinv(A'*A)*A'
+  end
+  let gi=gi
+    function(θ)
+      giθ = gi(θ)
+      p = length(θ)
+      (n, k) = size(giθ)
+      Ω = Hermitian(cov(giθ))
+      gn=mean(gi(θ), dims=1)'
+      iΩgn = Ω \ gn
+      Gi = similar(gn,n,k,p)
+      ForwardDiff.jacobian!(Gi,gi,θ)
+      G = mean(Gi, dims=1)
+      Γ = zeros(eltype(Gi),p,k,k)
+      D = zeros(eltype(Gi),k, p)
+      @inbounds for j in 1:p
+        @inbounds for i in 1:n
+          @views Γ[j,:,:] .+= (Gi[i,:,j] .- G[1,:,j]) * giθ[i,:]'
+        end
+        Γ[j,:,:] ./= n
+        @views D[:,j] .= G[1,:,j] .- Γ[j,:,:]*iΩgn
+      end
+      return(n,k,p,gn, Ω, D, P)
+    end
+  end
+end
+
+function klm_fast(gi::F) where {F <: Function}
+  SP = statparts_fast(gi)
+  function(θ)
+    (n,k,p,gn, Ω, D, P) = SP(θ)
+    λ, v = eigen(Ω)
+    irΩ = v*diagm(λ.^(-1/2))*v'
+    return n*(gn'*irΩ*P(irΩ*D)*irΩ*gn)[1]
+  end
+end
+```
+
+```{julia}
+@benchmark klm_fast(gi)(β0)
+```
+
+```{julia}
+@test klm_fast(gi)(β0) ≈ klm(gi)(β0)
+```
+
+## StaticArrays
+
+```{julia}
+#| code-fold: true
+#| code-summary: "extra functions"
+struct Integrator{Tx, Tw}
+    x::Tx
+    w::Tw
+end
+
+function Integrator(dx::Distribution, n=100)
+    x = [rand(dx) for _ in 1:n]
+    w = Base.Iterators.Repeated(1/n)
+    Integrator(x,w)
+end
+
+(∫::Integrator)(f) = sum((xw)->f(xw[1])*xw[2], zip(∫.x, ∫.w))
+```
+
+```{julia}
+#| code-fold: show
+function share(δ, Σ, x, ∫)
+  J,K = size(x)
+  (length(δ) == J) || error("length(δ)=$(length(δ)) != size(x,1)=$J")
+  (K,K) == size(Σ) || error("size(x,2)=$K != size(Σ)=$(size(Σ))")
+  xΣ = x*Σ
+  function shareν(ν)
+    s = δ + xΣ*ν
+    smax=max(0,maximum(s))
+    s = s .- smax
+    s = exp.(s)
+    s *= 1/(sum(s) + exp(0-smax))
+    return(s)
+  end
+  return(∫(shareν))
+end
+```
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+Heap allocated arrays
+
+```{julia}
+J = 10
+K = 5
+δ = rand(J)
+X = randn(J,K)
+Σ = I + zeros(K,K)
+∫ = Integrator(MvNormal(zeros(K),I))
+
+@benchmark share(δ,Σ,X,∫)
+```
+
+:::
+
+::: {.column width="50%"}
+
+Stack allocated arrays
+
+```{julia}
+using StaticArrays
+sδ = SVector{J}(δ)
+sΣ = SMatrix{K,K}(Σ)
+sX = SMatrix{J,K}(X)
+nd = length(∫.x)
+iw = SVector{nd}(fill(1/nd,nd))
+ix = [SVector{K}(x) for x ∈ ∫.x]
+s∫ = Integrator(ix,iw)
+
+@benchmark share(sδ,sΣ,sX,s∫)
+```
+:::
+
+:::
+
+## Memory Considerations
+
+::: {.incremental}
+
+- Computations are faster when operating accessing contiguous chunks of memory
+  - Access arrays by columns
+
+- Data moves `RAM ⇒ Cache ⇒ CPU Registers`
+   - `RAM ⇒ Cache` much slower than `Cache ⇒ CPU Registers`
+   - Can see big benefits from small code that fits on cache
+   - CPU prefetches data from `RAM ⇒ Cache`, by predicting what will be needed
+   - Needed data not on `Cache` when needed is a "cache miss", these are costly
+   - Predictable code without branches and accessing contiguous memory helps avoid caches misses
+
+:::
+
+## Single Instruction, Multiple Data
+
+- CPUs can perform the same operation on multiple numbers at the same time
+  - "Vectorized instructions"
+  - Current generation x86 CPUs have 512 bit registers, can operate on 8 `Float64` values at once
+- Compiler tries to use vectorized instructions when possible
+  - Loop of fixed length (no `break` or `continue`)
+  - No branching
+  - Re-ordering allowed (indicate with `@simd`)
+
+## SISD
+
+```{julia}
+function slowdot(a,b)
+  out = one(promote_type(eltype(a),eltype(b)))
+  for i in eachindex(a)
+    out += a[i]*b[i]
+  end
+  out
+end
+
+n = 1_000
+a = rand(n)
+b = rand(n)
+@code_llvm slowdot(a,b)
+```
+
+## SIMD
+
+```{julia}
+function fastdot(a,b)
+  out = one(promote_type(eltype(a),eltype(b)))
+  @simd for i in eachindex(a)
+    out += a[i]*b[i]
+  end
+  out
+end
+
+@code_llvm fastdot(a,b)
+```
+
+## Multiple faster than Single
+
+::: {.columns}
+
+::: {.column width=50%}
+
+```{julia}
+@benchmark slowdot($a,$b)
+```
+
+:::
+
+::: {.column width=50%}
+
+```{julia}
+@benchmark fastdot($a,$b)
+```
+:::
+
+:::
+
+## Beyond `@simd`
+
+- `@simd` is somewhat conservative in its vectorization
+- The [LoopVectorization](https://github.com/JuliaSIMD/LoopVectorization.jl) provides a more aggresive auto-vectorization macro, `@turbo`
+  - Unless new maintainer steps forward, will not work with Julia 1.11 and newer
+  - Does not work for all loops
+- Can manually write SIMD code
+  - Using [SIMD.jl](https://github.com/eschnett/SIMD.jl)
+  - Using `llvmcall` (not recommended)
+
+
+## SIMD.jl Example
+
+- Based on https://schrimpf.github.io/ARGridBootstrap.jl/argridboot.html#simd
+
+```{julia}
+#| code-fold: true
+using LoopVectorization, SIMD
+
+T = 1000
+e = zeros(T)
+y = randn(T)
+θ = ones(3);
+```
+
+::: {.columns}
+
+::: {.column width=50%}
+
+```{julia}
+#| code-fold: show
+function resids!(e, yin, θ)
+  T = length(yin)
+  @inbounds @simd for t in 2:T
+    e[t-1] = yin[t] - θ[1] - θ[2]*t - θ[3]*yin[t-1]
+  end
+  nothing
+end
+
+@code_llvm resids!(e,y, θ)
+```
+
+```{julia}
+@benchmark resids!($e,$y,$θ)
+```
+
+:::
+
+::: {.column width=50%}
+
+```{julia}
+#| code-fold: show
+function resids_turbo!(e, yin, θ)
+  T = length(yin)
+  @turbo for t in 2:T
+    e[t-1] = yin[t] - θ[1] - θ[2]*t - θ[3]*yin[t-1]
+  end
+  nothing
+end
+
+@code_llvm resids_turbo!(e,y, θ)
+```
+
+```{julia}
+@benchmark resids_turbo!($e,$y,$θ)
+```
+
+:::
+
+:::
+
+## Example: Manual SIMD
+
+```{julia}
+oneto(::Val{1}) = (1,)
+oneto(::Val{N}) where N = (oneto(Val(N-1))..., N)
+
+function resids_simd!(e,yin, θ, width::Val{N}=Val(8)) where N
+  lane = VecRange{N}(0)
+  tv=Vec{N,Float64}(oneto(Val(N)))
+  θ1=-Vec{N,Float64}(θ[1])
+  θ2=-Vec{N,Float64}(θ[2])
+  θ3=-Vec{N,Float64}(θ[3])
+  remainder = length(e) % N
+  @inbounds for t ∈ 1:N:(length(e)-remainder) #eachindex(e)
+    @fastmath e[t+lane] = muladd(θ2,tv,yin[t+1+lane])+muladd(θ3,yin[t+lane],θ1)
+    @fastmath tv+=N
+  end
+  @inbounds for t ∈ (length(e)-remainder+1):length(e)
+    @fastmath e[t] = muladd(-θ[2],t+1,yin[t+1])-muladd(θ[3],yin[t],θ[1])
+  end
+  nothing
+end
+
+@benchmark resids_simd!($e,$y,$θ)
+```
+
+## Example: Necessary Manual SIMD
+
+::: {.columns}
+
+::: {.column width=50%}
+
+```{julia}
+function xx_xy!(xx,xy,yin)
+  T = length(yin)
+  xx .= zero(eltype(xx))
+  xy .= zero(eltype(xy))
+  @inbounds @fastmath @simd for t in 2:T # @turbo errors
+    xx[1,3] += yin[t-1]
+    xx[2,3] += t*yin[t-1]
+    xx[3,3] += yin[t-1]^2
+    xy[1] += yin[t]
+    xy[2] += t*yin[t]
+    xy[3] += yin[t-1]*yin[t]
+  end
+  xx[1,1] = T-1 # = 1'*1
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(p+1:T)
+  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((p+1:T).^2)
+  xx[3,1] = xx[1,3]
+  xx[3,2] = xx[2,3]
+  nothing
+end
+
+xx = @MMatrix zeros(3,3)
+xy = @MVector zeros(3)
+@benchmark xx_xy!($xx,$xy,$y)
+```
+
+:::
+
+::: {.column width=50%}
+
+```{julia}
+function xx_xy_simd!(xx,xy,yin, v::Val{N}=Val(32)) where {N}
+  T = length(yin)
+  remainder=(T-1) % N
+  xx .= zero(eltype(xx))
+  xy .= zero(eltype(xy))
+  tv = Vec{N,eltype(yin)}(oneto(Val(N)))+1
+  lane = VecRange{N}(0)
+  @inbounds for t in 2:N:(T-remainder)
+    xx[1,3] += sum(yin[t-1+lane])
+    xx[2,3] += sum(yin[t-1+lane]*tv)
+    xx[3,3] += sum(yin[t-1+lane]^2)
+    xy[1] += sum(yin[t+lane])
+    xy[2] += sum(tv*yin[t+lane])
+    xy[3] += sum(yin[t-1+lane]*yin[t+lane])
+    tv += N
+  end
+  @inbounds for t in (T-remainder+1):T
+    xx[1,3] += yin[t-1]
+    xx[2,3] += yin[t-1]*t
+    xx[3,3] += yin[t-1]^2
+    xy[1] += yin[t]
+    xy[2] += t*yin[t]
+    xy[3] += yin[t-1]*yin[t]
+  end
+  xx[1,1] = T-1 # = 1'*1
+  xx[1,2] = xx[2,1] = (T+1)*T/2 - 1 # sum(2:T)
+  xx[2,2] = (2*(T)+1)*(T)*(T+1)/6 - 1 # sum((2:T).^2)
+  xx[3,1] = xx[1,3]
+  xx[3,2] = xx[2,3]
+  nothing
+end
+
+@benchmark xx_xy_simd!($xx,$xy,$y)
+```
+
+:::
+
+:::
+
+## References

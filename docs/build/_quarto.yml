@@ -2,6 +2,7 @@ project:
   type: website
   render:
     - "*.md"
+    - "*.qmd"
 
 website:
   title: "ARGridBootstrap"
@@ -17,6 +18,8 @@ website:
         text: Using GPUs
       - href: assignment.md
         text: More Examples
+      - href: westdri_talk.qmd
+        text: Julia at Full Tilt (slides)
       - href: license.md
         text: License
 
@@ -25,4 +28,3 @@ format:
     theme: journal
     toc: true
     #css: styles.css
-
