@@ -1,27 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://schrimpf.github.io/ARGridBootstrap/threads.html</loc>
-    <lastmod>2023-10-07T00:33:35.805Z</lastmod>
+    <loc>https://schrimpf.github.io/ARGridBootstrap/westdri_talk.html</loc>
+    <lastmod>2024-04-30T17:39:09.196Z</lastmod>
   </url>
   <url>
-    <loc>https://schrimpf.github.io/ARGridBootstrap/index.html</loc>
-    <lastmod>2024-04-27T00:06:04.217Z</lastmod>
-  </url>
-  <url>
-    <loc>https://schrimpf.github.io/ARGridBootstrap/assignment.html</loc>
-    <lastmod>2024-04-27T00:05:51.893Z</lastmod>
-  </url>
-  <url>
-    <loc>https://schrimpf.github.io/ARGridBootstrap/argridboot.html</loc>
-    <lastmod>2023-10-10T02:59:40.711Z</lastmod>
+    <loc>https://schrimpf.github.io/ARGridBootstrap/license.html</loc>
+    <lastmod>2024-04-27T00:06:03.250Z</lastmod>
   </url>
   <url>
     <loc>https://schrimpf.github.io/ARGridBootstrap/gpu.html</loc>
     <lastmod>2023-10-07T00:33:35.718Z</lastmod>
   </url>
   <url>
-    <loc>https://schrimpf.github.io/ARGridBootstrap/license.html</loc>
-    <lastmod>2024-04-27T00:06:03.250Z</lastmod>
+    <loc>https://schrimpf.github.io/ARGridBootstrap/argridboot.html</loc>
+    <lastmod>2023-10-10T02:59:40.711Z</lastmod>
+  </url>
+  <url>
+    <loc>https://schrimpf.github.io/ARGridBootstrap/assignment.html</loc>
+    <lastmod>2024-04-27T00:05:51.893Z</lastmod>
+  </url>
+  <url>
+    <loc>https://schrimpf.github.io/ARGridBootstrap/index.html</loc>
+    <lastmod>2024-04-27T00:06:04.217Z</lastmod>
+  </url>
+  <url>
+    <loc>https://schrimpf.github.io/ARGridBootstrap/threads.html</loc>
+    <lastmod>2023-10-07T00:33:35.805Z</lastmod>
   </url>
 </urlset>
