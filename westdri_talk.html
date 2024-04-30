@@ -510,7 +510,7 @@ Paul Schrimpf
 </section>
 <section id="type-stable-example" class="slide level2">
 <h2>Type Stable: Example</h2>
-<div id="2fae99b8" class="cell" data-execution_count="1">
+<div id="2fae99b8" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a></a><span class="im">using</span> <span class="bu">BenchmarkTools</span></span>
 <span id="cb1-2"><a></a><span class="kw">function</span> <span class="fu">unstabletrick</span>(x, t)</span>
 <span id="cb1-3"><a></a>  <span class="fu">sum</span>(xi <span class="op">&lt;</span> t ? xi <span class="op">:</span> t <span class="cf">for</span> xi <span class="kw">in</span> x)</span>
@@ -526,7 +526,7 @@ Paul Schrimpf
 <div class="columns">
 <div class="column" style="width:33%;">
 <p>Stable: Float to Float</p>
-<div id="e0b60db8" class="cell" data-execution_count="2">
+<div id="e0b60db8" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a></a><span class="pp">@benchmark</span> <span class="fu">unstabletrick</span>(x, <span class="fl">0</span>.)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
 <div class="ansi-escaped-output">
@@ -543,7 +543,7 @@ Paul Schrimpf
 </div>
 </div><div class="column" style="width:33%;">
 <p>Stable: Int to Int</p>
-<div id="e481cbb6" class="cell" data-execution_count="3">
+<div id="e481cbb6" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a></a>xint <span class="op">=</span> <span class="fu">round</span>.(<span class="dt">Int</span>, x)</span>
 <span id="cb3-2"><a></a><span class="pp">@benchmark</span> <span class="fu">unstabletrick</span>(xint, <span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="4">
@@ -561,7 +561,7 @@ Paul Schrimpf
 </div>
 </div><div class="column" style="width:33%;">
 <p>Unstable: (Int &amp; Float) to (Int | Float)</p>
-<div id="eb3b5e81" class="cell" data-execution_count="4">
+<div id="eb3b5e81" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a></a><span class="pp">@benchmark</span> <span class="fu">unstabletrick</span>(xint, <span class="fl">0</span>.)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <div class="ansi-escaped-output">
@@ -586,7 +586,7 @@ Paul Schrimpf
 <h2>Detecting Type Instability</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div id="daaa34eb" class="cell" data-execution_count="5">
+<div id="daaa34eb" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><a></a><span class="pp">@code_warntype</span> <span class="fu">unstabletrick</span>(xint,<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>MethodInstance for unstabletrick(::Vector{Int64}, ::Int64)
@@ -610,7 +610,7 @@ Body::Int64
 </div>
 </div>
 </div><div class="column" style="width:50%;">
-<div id="3ad9d31d" class="cell" data-execution_count="6">
+<div id="3ad9d31d" class="cell" data-execution_count="7">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><a></a><span class="pp">@code_warntype</span> <span class="fu">unstabletrick</span>(xint,<span class="fl">0</span>.)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>MethodInstance for unstabletrick(::Vector{Int64}, ::Float64)
@@ -640,7 +640,7 @@ Body::Union{Float64, Int64}
 <h2>Extended Example</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div id="a65dccee" class="cell" data-execution_count="7">
+<div id="a65dccee" class="cell" data-execution_count="8">
 <details open="" class="code-fold">
 <summary>Code for klm()</summary>
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb9-1"><a></a><span class="im">using</span> <span class="bu">ForwardDiff</span>, <span class="bu">LinearAlgebra</span>, <span class="bu">Distributions</span></span>
@@ -709,7 +709,7 @@ Body::Union{Float64, Int64}
 <pre><code>#20 (generic function with 1 method)</code></pre>
 </div>
 </div>
-<div id="79451a97" class="cell" data-execution_count="8">
+<div id="79451a97" class="cell" data-execution_count="9">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb11-1"><a></a><span class="pp">@code_warntype</span> <span class="fu">statparts</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>MethodInstance for (::var"#15#17"{var"#20#21"{Vector{Float64}, Matrix{Float64}, Matrix{Float64}}, var"#P#16"})(::Vector{Float64})
@@ -828,7 +828,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </code></pre>
 </div>
 </div>
-<div id="1b15de9b" class="cell" data-execution_count="9">
+<div id="1b15de9b" class="cell" data-execution_count="10">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb13-1"><a></a><span class="pp">@benchmark</span> <span class="fu">statparts</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <div class="ansi-escaped-output">
@@ -844,7 +844,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </div>
 </div>
 </div><div class="column" style="width:50%;">
-<div id="383e451b" class="cell" data-execution_count="10">
+<div id="383e451b" class="cell" data-execution_count="11">
 <details open="" class="code-fold">
 <summary>klm_stable()</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a></a><span class="kw">function</span> <span class="fu">statparts_stable</span>(gi<span class="op">::</span><span class="dt">F</span>) <span class="kw">where</span> {F <span class="op">&lt;:</span><span class="dt"> Function</span>}</span>
@@ -887,7 +887,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 <pre><code>klm_stable (generic function with 1 method)</code></pre>
 </div>
 </div>
-<div id="bba22180" class="cell" data-execution_count="11">
+<div id="bba22180" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a></a><span class="pp">@code_warntype</span> <span class="fu">statparts_stable</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>MethodInstance for (::var"#22#24"{var"#20#21"{Vector{Float64}, Matrix{Float64}, Matrix{Float64}}, var"#P#23"})(::Vector{Float64})
@@ -1007,7 +1007,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </code></pre>
 </div>
 </div>
-<div id="0a1c3288" class="cell" data-execution_count="12">
+<div id="0a1c3288" class="cell" data-execution_count="13">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><a></a><span class="pp">@benchmark</span> <span class="fu">statparts_stable</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="13">
 <div class="ansi-escaped-output">
@@ -1022,7 +1022,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </div>
 </div>
 </div>
-<div id="9a863683" class="cell" data-execution_count="13">
+<div id="9a863683" class="cell" data-execution_count="14">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><a></a><span class="im">using</span> <span class="bu">Test</span></span>
 <span id="cb19-2"><a></a><span class="pp">@test</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>) <span class="op">≈</span> <span class="fu">klm_stable</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="14">
@@ -1054,7 +1054,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </section>
 <section id="profiling" class="slide level2">
 <h2>Profiling</h2>
-<div id="e7ed92f4" class="cell" data-execution_count="14">
+<div id="e7ed92f4" class="cell" data-execution_count="15">
 <details class="code-fold">
 <summary>profileiframe</summary>
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><a></a><span class="im">using</span> <span class="bu">Profile</span>, <span class="bu">ProfileCanvas</span></span>
@@ -1101,7 +1101,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </section>
 <section id="reduced-allocations" class="slide level2">
 <h2>Reduced Allocations</h2>
-<div id="5f932b4e" class="cell" data-execution_count="16">
+<div id="5f932b4e" class="cell" data-execution_count="17">
 <details class="code-fold">
 <summary>klm_fast()</summary>
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb22-1"><a></a><span class="kw">function</span> <span class="fu">statparts_fast</span>(gi<span class="op">::</span><span class="dt">F</span>) <span class="kw">where</span> {F <span class="op">&lt;:</span><span class="dt"> Function</span>}</span>
@@ -1147,7 +1147,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 <pre><code>klm_fast (generic function with 1 method)</code></pre>
 </div>
 </div>
-<div id="3caca307" class="cell" data-execution_count="17">
+<div id="3caca307" class="cell" data-execution_count="18">
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb24-1"><a></a><span class="pp">@benchmark</span> <span class="fu">klm_fast</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="18">
 <div class="ansi-escaped-output">
@@ -1162,7 +1162,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </div>
 </div>
 </div>
-<div id="d3bfe0ec" class="cell" data-execution_count="18">
+<div id="d3bfe0ec" class="cell" data-execution_count="19">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb25-1"><a></a><span class="pp">@test</span> <span class="fu">klm_fast</span>(gi)(β<span class="fl">0</span>) <span class="op">≈</span> <span class="fu">klm</span>(gi)(β<span class="fl">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="19">
 <div class="ansi-escaped-output">
@@ -1173,7 +1173,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </section>
 <section id="staticarrays" class="slide level2">
 <h2>StaticArrays</h2>
-<div id="db3da9cf" class="cell" data-execution_count="19">
+<div id="db3da9cf" class="cell" data-execution_count="20">
 <details class="code-fold">
 <summary>extra functions</summary>
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb26-1"><a></a><span class="kw">struct</span> Integrator{Tx, Tw}</span>
@@ -1190,7 +1190,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 <span id="cb26-12"><a></a>(∫<span class="op">::</span><span class="dt">Integrator</span>)(f) <span class="op">=</span> <span class="fu">sum</span>((xw)<span class="fu">-&gt;f</span>(xw[<span class="fl">1</span>])<span class="op">*</span>xw[<span class="fl">2</span>], <span class="fu">zip</span>(∫.x, ∫.w))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="97e51826" class="cell" data-execution_count="20">
+<div id="97e51826" class="cell" data-execution_count="21">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb27-1"><a></a><span class="kw">function</span> <span class="fu">share</span>(δ, Σ, x, ∫)</span>
@@ -1216,7 +1216,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 <div class="columns">
 <div class="column" style="width:50%;">
 <p>Heap allocated arrays</p>
-<div id="57ae1245" class="cell" data-execution_count="21">
+<div id="57ae1245" class="cell" data-execution_count="22">
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb29-1"><a></a>J <span class="op">=</span> <span class="fl">10</span></span>
 <span id="cb29-2"><a></a>K <span class="op">=</span> <span class="fl">5</span></span>
 <span id="cb29-3"><a></a>δ <span class="op">=</span> <span class="fu">rand</span>(J)</span>
@@ -1240,7 +1240,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </div>
 </div><div class="column" style="width:50%;">
 <p>Stack allocated arrays</p>
-<div id="18d06ec8" class="cell" data-execution_count="22">
+<div id="18d06ec8" class="cell" data-execution_count="23">
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb30-1"><a></a><span class="im">using</span> <span class="bu">StaticArrays</span></span>
 <span id="cb30-2"><a></a>sδ <span class="op">=</span> <span class="fu">SVector</span><span class="dt">{J}</span>(δ)</span>
 <span id="cb30-3"><a></a>sΣ <span class="op">=</span> <span class="fu">SMatrix</span><span class="dt">{K,K}</span>(Σ)</span>
@@ -1304,7 +1304,7 @@ Body::Tuple{Int64, Int64, Int64, Adjoint{Float64, Matrix{Float64}}, Matrix{Float
 </section>
 <section id="sisd" class="slide level2">
 <h2>SISD</h2>
-<div id="4e8f8848" class="cell" data-execution_count="23">
+<div id="4e8f8848" class="cell" data-execution_count="24">
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb31-1"><a></a><span class="kw">function</span> <span class="fu">slowdot</span>(a,b)</span>
 <span id="cb31-2"><a></a>  out <span class="op">=</span> <span class="fu">one</span>(<span class="fu">promote_type</span>(<span class="fu">eltype</span>(a),<span class="fu">eltype</span>(b)))</span>
 <span id="cb31-3"><a></a>  <span class="cf">for</span> i <span class="kw">in</span> <span class="fu">eachindex</span>(a)</span>
@@ -1623,7 +1623,7 @@ idxend13.postloop:                                ; preds = %idxend.postloop
 </section>
 <section id="simd" class="slide level2">
 <h2>SIMD</h2>
-<div id="2b32b196" class="cell" data-execution_count="24">
+<div id="2b32b196" class="cell" data-execution_count="25">
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb33-1"><a></a><span class="kw">function</span> <span class="fu">fastdot</span>(a,b)</span>
 <span id="cb33-2"><a></a>  out <span class="op">=</span> <span class="fu">one</span>(<span class="fu">promote_type</span>(<span class="fu">eltype</span>(a),<span class="fu">eltype</span>(b)))</span>
 <span id="cb33-3"><a></a>  <span class="pp">@simd</span> <span class="cf">for</span> i <span class="kw">in</span> <span class="fu">eachindex</span>(a)</span>
@@ -1971,7 +1971,7 @@ idxend9.postloop:                                 ; preds = %idxend.postloop
 <h2>Multiple faster than Single</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div id="15b3025f" class="cell" data-execution_count="25">
+<div id="15b3025f" class="cell" data-execution_count="26">
 <div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb35-1"><a></a><span class="pp">@benchmark</span> <span class="fu">slowdot</span>(<span class="op">$</span>a,<span class="op">$</span>b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="26">
 <div class="ansi-escaped-output">
@@ -1987,7 +1987,7 @@ idxend9.postloop:                                 ; preds = %idxend.postloop
 </div>
 </div>
 </div><div class="column" style="width:50%;">
-<div id="2e7fef16" class="cell" data-execution_count="26">
+<div id="2e7fef16" class="cell" data-execution_count="27">
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb36-1"><a></a><span class="pp">@benchmark</span> <span class="fu">fastdot</span>(<span class="op">$</span>a,<span class="op">$</span>b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="27">
 <div class="ansi-escaped-output">
@@ -2026,7 +2026,7 @@ idxend9.postloop:                                 ; preds = %idxend.postloop
 <ul>
 <li>Based on https://schrimpf.github.io/ARGridBootstrap.jl/argridboot.html#simd</li>
 </ul>
-<div id="09501852" class="cell" data-execution_count="27">
+<div id="09501852" class="cell" data-execution_count="28">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb37"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb37-1"><a></a><span class="im">using</span> <span class="bu">LoopVectorization</span>, <span class="bu">SIMD</span></span>
@@ -2039,7 +2039,7 @@ idxend9.postloop:                                 ; preds = %idxend.postloop
 </div>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div id="11191f8b" class="cell" data-execution_count="28">
+<div id="11191f8b" class="cell" data-execution_count="29">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb38-1"><a></a><span class="kw">function</span> <span class="fu">resids!</span>(<span class="cn">e</span>, yin, θ)</span>
@@ -2483,7 +2483,7 @@ L56:                                              ; preds = %L19, %L19.prol.loop
 }</code></pre>
 </div>
 </div>
-<div id="38e19923" class="cell" data-execution_count="29">
+<div id="38e19923" class="cell" data-execution_count="30">
 <div class="sourceCode cell-code" id="cb40"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb40-1"><a></a><span class="pp">@benchmark</span> <span class="fu">resids!</span>(<span class="op">$</span>e,<span class="op">$</span>y,<span class="op">$</span>θ)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="30">
 <div class="ansi-escaped-output">
@@ -2499,7 +2499,7 @@ L56:                                              ; preds = %L19, %L19.prol.loop
 </div>
 </div>
 </div><div class="column" style="width:50%;">
-<div id="208d31f3" class="cell" data-execution_count="30">
+<div id="208d31f3" class="cell" data-execution_count="31">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb41"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb41-1"><a></a><span class="kw">function</span> <span class="fu">resids_turbo!</span>(<span class="cn">e</span>, yin, θ)</span>
@@ -3297,7 +3297,7 @@ L233:                                             ; preds = %L196, %L168, %L146,
 }</code></pre>
 </div>
 </div>
-<div id="30c78e34" class="cell" data-execution_count="31">
+<div id="30c78e34" class="cell" data-execution_count="32">
 <div class="sourceCode cell-code" id="cb43"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb43-1"><a></a><span class="pp">@benchmark</span> <span class="fu">resids_turbo!</span>(<span class="op">$</span>e,<span class="op">$</span>y,<span class="op">$</span>θ)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="32">
 <div class="ansi-escaped-output">
@@ -3317,7 +3317,7 @@ L233:                                             ; preds = %L196, %L168, %L146,
 </section>
 <section id="example-manual-simd" class="slide level2">
 <h2>Example: Manual SIMD</h2>
-<div id="090286e1" class="cell" data-execution_count="32">
+<div id="090286e1" class="cell" data-execution_count="33">
 <div class="sourceCode cell-code" id="cb44"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb44-1"><a></a><span class="fu">oneto</span>(<span class="op">::</span><span class="dt">Val{1}</span>) <span class="op">=</span> (<span class="fl">1</span>,)</span>
 <span id="cb44-2"><a></a><span class="fu">oneto</span>(<span class="op">::</span><span class="dt">Val{N}</span>) <span class="kw">where</span> N <span class="op">=</span> (<span class="fu">oneto</span>(<span class="fu">Val</span>(N<span class="op">-</span><span class="fl">1</span>))<span class="op">...</span>, N)</span>
 <span id="cb44-3"><a></a></span>
@@ -3357,7 +3357,7 @@ L233:                                             ; preds = %L196, %L168, %L146,
 <h2>Example: Necessary Manual SIMD</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div id="54df3217" class="cell" data-execution_count="33">
+<div id="54df3217" class="cell" data-execution_count="34">
 <div class="sourceCode cell-code" id="cb45"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb45-1"><a></a><span class="kw">function</span> <span class="fu">xx_xy!</span>(xx,xy,yin)</span>
 <span id="cb45-2"><a></a>  T <span class="op">=</span> <span class="fu">length</span>(yin)</span>
 <span id="cb45-3"><a></a>  xx <span class="op">.=</span> <span class="fu">zero</span>(<span class="fu">eltype</span>(xx))</span>
@@ -3395,7 +3395,7 @@ L233:                                             ; preds = %L196, %L168, %L146,
 </div>
 </div>
 </div><div class="column" style="width:50%;">
-<div id="10fa7d9d" class="cell" data-execution_count="34">
+<div id="10fa7d9d" class="cell" data-execution_count="35">
 <div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource julia number-lines code-with-copy"><code class="sourceCode julia"><span id="cb46-1"><a></a><span class="kw">function</span> <span class="fu">xx_xy_simd!</span>(xx,xy,yin, v<span class="op">::</span><span class="dt">Val{N}</span>=<span class="fu">Val</span>(<span class="fl">32</span>)) <span class="kw">where</span> {N}</span>
 <span id="cb46-2"><a></a>  T <span class="op">=</span> <span class="fu">length</span>(yin)</span>
 <span id="cb46-3"><a></a>  remainder<span class="op">=</span>(T<span class="op">-</span><span class="fl">1</span>) <span class="op">%</span> N</span>
