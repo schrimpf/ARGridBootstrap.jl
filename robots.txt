@@ -1,1 +1,1 @@
-Sitemap: https://schrimpf.github.io/ARGridBootstrap/sitemap.xml
+Sitemap: https://schrimpf.github.io/ARGridBootstrap.jl/sitemap.xml
