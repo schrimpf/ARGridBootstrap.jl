@@ -3,6 +3,8 @@ project:
   render:
     - "*.md"
     - "*.qmd"
+  resources:
+    - "*.html"
 
 website:
   title: "ARGridBootstrap"

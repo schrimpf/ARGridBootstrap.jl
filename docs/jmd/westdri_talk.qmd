@@ -417,8 +417,13 @@ function profileiframe(filename="proftmp.html")
   #s=String(take!(buf))
   #s=replace(s, "\"" => "&quot" )
   #  HTML("<iframe srcdata=\""*s*"\" width=\"1200\"  height=\"650\"></iframe>\n")
-  ProfileCanvas.html_file(filename)
-  HTML("<iframe src=\""*filename*"\" width=\"1200\"  height=\"650\"></iframe>\n")
+  #ProfileCanvas.html_file(filename)
+
+  #HTML("<iframe src=\""*filename*"\" width=\"1200\"  height=\"650\"></iframe>\n")
+  open(filename, "w") do io
+    show(io, MIME("text/html"), ProfileCanvas.view(Profile.fetch()))
+  end
+  HTML("<iframe src=\""*filename*"\" width=\"1500\"  height=\"650\"></iframe>\n")
 end
 ```
 
@@ -426,8 +431,11 @@ end
 #| output: asis
 Profile.clear();
 Profile.init(n=10^7,delay=0.00001);
-@profile sum(klm_stable(gi)(β0) for i in 1:1_000)
-profileiframe("klmprof.html") # only needed for quarto, just use @profview elsewhere
+klm_stable(gi)(β0)
+foo(n) = sum(klm_stable(gi)(β0) for i in 1:n) # loop so it runs longer to get better profile
+foo(1) # precompile outside of profiling
+@profile foo(1_000)
+profileiframe("klmprof.html") # only needed for quarto, just use `@profview foo(1_000)` elsewhere
 ```
 
 ## Reducing Allocations
